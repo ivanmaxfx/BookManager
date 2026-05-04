@@ -1,0 +1,184 @@
+<?xml version="1.0"?>
+<doc>
+    <assembly>
+        <name>BookManager</name>
+    </assembly>
+    <members>
+        <member name="T:MyWebApiProject.Controllers.EventsController">
+            <summary>
+            API для управления мероприятиями.
+            </summary>
+        </member>
+        <member name="M:MyWebApiProject.Controllers.EventsController.#ctor(MyWebApiProject.Services.IEventService)">
+            <summary>
+            Инициализирует новый экземпляр контроллера мероприятий.
+            </summary>
+            <param name="eventService">Сервис для работы с мероприятиями.</param>
+        </member>
+        <member name="M:MyWebApiProject.Controllers.EventsController.GetAll(MyWebApiProject.Dtos.EventQueryParameters)">
+            <summary>
+            Получить список мероприятий с фильтрацией и пагинацией.
+            </summary>
+        </member>
+        <member name="M:MyWebApiProject.Controllers.EventsController.GetById(System.Guid)">
+            <summary>
+            Получить мероприятие по идентификатору.
+            </summary>
+        </member>
+        <member name="M:MyWebApiProject.Controllers.EventsController.Create(MyWebApiProject.Dtos.EventRequest)">
+            <summary>
+            Создать новое мероприятие.
+            </summary>
+        </member>
+        <member name="M:MyWebApiProject.Controllers.EventsController.Update(System.Guid,MyWebApiProject.Dtos.EventRequest)">
+            <summary>
+            Обновить мероприятие по идентификатору.
+            </summary>
+        </member>
+        <member name="M:MyWebApiProject.Controllers.EventsController.Delete(System.Guid)">
+            <summary>
+            Удалить мероприятие по идентификатору.
+            </summary>
+        </member>
+        <member name="T:MyWebApiProject.Dtos.EventQueryParameters">
+            <summary>
+            Параметры фильтрации и пагинации мероприятий.
+            </summary>
+        </member>
+        <member name="P:MyWebApiProject.Dtos.EventQueryParameters.Title">
+            <summary>
+            Поиск по названию.
+            </summary>
+        </member>
+        <member name="P:MyWebApiProject.Dtos.EventQueryParameters.From">
+            <summary>
+            События, начинающиеся не раньше указанной даты.
+            </summary>
+        </member>
+        <member name="P:MyWebApiProject.Dtos.EventQueryParameters.To">
+            <summary>
+            События, заканчивающиеся не позже указанной даты.
+            </summary>
+        </member>
+        <member name="P:MyWebApiProject.Dtos.EventQueryParameters.Page">
+            <summary>
+            Номер страницы.
+            </summary>
+        </member>
+        <member name="P:MyWebApiProject.Dtos.EventQueryParameters.PageSize">
+            <summary>
+            Размер страницы.
+            </summary>
+        </member>
+        <member name="T:MyWebApiProject.Dtos.EventRequest">
+            <summary>
+            DTO для создания и обновления мероприятия.
+            </summary>
+        </member>
+        <member name="P:MyWebApiProject.Dtos.EventRequest.Title">
+            <summary>
+            Название мероприятия.
+            </summary>
+        </member>
+        <member name="P:MyWebApiProject.Dtos.EventRequest.Description">
+            <summary>
+            Описание мероприятия.
+            </summary>
+        </member>
+        <member name="P:MyWebApiProject.Dtos.EventRequest.StartAt">
+            <summary>
+            Дата и время начала мероприятия.
+            </summary>
+        </member>
+        <member name="P:MyWebApiProject.Dtos.EventRequest.EndAt">
+            <summary>
+            Дата и время окончания мероприятия.
+            </summary>
+        </member>
+        <member name="M:MyWebApiProject.Dtos.EventRequest.Validate(System.ComponentModel.DataAnnotations.ValidationContext)">
+            <summary>
+            Выполняет дополнительную валидацию модели.
+            </summary>
+        </member>
+        <member name="T:MyWebApiProject.Dtos.PaginatedResult`1">
+            <summary>
+            Результат пагинации.
+            </summary>
+        </member>
+        <member name="P:MyWebApiProject.Dtos.PaginatedResult`1.TotalCount">
+            <summary>
+            Общее количество элементов после фильтрации.
+            </summary>
+        </member>
+        <member name="P:MyWebApiProject.Dtos.PaginatedResult`1.Page">
+            <summary>
+            Номер текущей страницы.
+            </summary>
+        </member>
+        <member name="P:MyWebApiProject.Dtos.PaginatedResult`1.PageSize">
+            <summary>
+            Количество элементов на текущей странице.
+            </summary>
+        </member>
+        <member name="P:MyWebApiProject.Dtos.PaginatedResult`1.Items">
+            <summary>
+            Элементы текущей страницы.
+            </summary>
+        </member>
+        <member name="T:MyWebApiProject.Exceptions.NotFoundException">
+            <summary>
+            Исключение, возникающее, когда ресурс не найден.
+            </summary>
+        </member>
+        <member name="T:MyWebApiProject.Exceptions.ValidationException">
+            <summary>
+            Исключение для ошибок валидации бизнес-логики.
+            </summary>
+        </member>
+        <member name="T:MyWebApiProject.Middleware.ExceptionHandlingMiddleware">
+            <summary>
+            Middleware для глобальной обработки исключений.
+            </summary>
+        </member>
+        <member name="T:MyWebApiProject.Models.Event">
+            <summary>
+            Представляет мероприятие.
+            </summary>
+        </member>
+        <member name="P:MyWebApiProject.Models.Event.Id">
+            <summary>
+            Уникальный идентификатор мероприятия.
+            </summary>
+        </member>
+        <member name="P:MyWebApiProject.Models.Event.Title">
+            <summary>
+            Название мероприятия.
+            </summary>
+        </member>
+        <member name="P:MyWebApiProject.Models.Event.Description">
+            <summary>
+            Описание мероприятия.
+            </summary>
+        </member>
+        <member name="P:MyWebApiProject.Models.Event.StartAt">
+            <summary>
+            Дата и время начала мероприятия.
+            </summary>
+        </member>
+        <member name="P:MyWebApiProject.Models.Event.EndAt">
+            <summary>
+            Дата и время окончания мероприятия.
+            </summary>
+        </member>
+        <member name="T:MyWebApiProject.Services.EventService">
+            <summary>
+            Потокобезопасный сервис для хранения мероприятий в памяти приложения.
+            </summary>
+        </member>
+        <member name="T:MyWebApiProject.Services.IEventService">
+            <summary>
+            Сервис для работы с мероприятиями.
+            </summary>
+        </member>
+    </members>
+</doc>
