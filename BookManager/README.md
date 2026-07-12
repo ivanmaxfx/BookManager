@@ -1,61 +1,91 @@
-# BookManager API
+# BookManager
 
-ASP.NET Core Web API для управления мероприятиями.
+ASP.NET Core Web API для управления мероприятиями и бронированиями.
 
-Проект поддерживает:
+## Что добавлено в третьем спринте
 
-- CRUD-операции для мероприятий
-- валидацию входных данных
-- глобальную обработку ошибок
-- фильтрацию событий по названию и датам
-- пагинацию результатов
-- юнит-тесты для бизнес-логики сервиса
+Добавлена сущность `Booking` со следующими полями:
 
-## Требования
+- `Id`
+- `EventId`
+- `Status`
+- `CreatedAt`
+- `ProcessedAt`
 
-- .NET SDK 9.0 или выше
+Добавлены статусы бронирования:
+
+- `Pending`
+- `Confirmed`
+- `Rejected`
+
+Реализованы:
+
+- хранение бронирований в памяти;
+- `BookingService` и интерфейс `IBookingService`;
+- создание брони для существующего мероприятия;
+- получение брони по идентификатору;
+- фоновая обработка бронирований через `BackgroundService`;
+- искусственная задержка перед обработкой;
+- перевод брони из `Pending` в `Confirmed`;
+- заполнение `ProcessedAt`;
+- обработка отсутствующих мероприятий и бронирований через `404 Not Found`;
+- Swagger для новых эндпоинтов.
+
+## Новые эндпоинты
+
+### Создание бронирования
+
+```http
+POST /events/{id}/book
+```
+
+Возвращает:
+
+```text
+202 Accepted
+```
+
+В заголовке `Location` возвращается ссылка:
+
+```text
+/bookings/{bookingId}
+```
+
+Новая бронь создаётся со статусом `Pending`.
+
+### Получение бронирования
+
+```http
+GET /bookings/{id}
+```
+
+Возвращает текущее состояние брони.
+
+Через несколько секунд после создания статус меняется с `Pending` на `Confirmed`.
 
 ## Запуск проекта
 
-1. Перейти в папку проекта:
+Требуется .NET SDK 9.0.
+
+Из корня репозитория:
 
 ```bash
-cd BookManager
-```
-
-2. Восстановить зависимости:
-
-```bash
-dotnet restore
-```
-
-3. Собрать проект:
-
-```bash
+dotnet restore BookManager/BookManager.csproj
 dotnet build BookManager/BookManager.csproj
+dotnet run --project BookManager/BookManager.csproj
 ```
 
-4. Запустить проект:
+Для запуска :
 
 ```bash
-dotnet run --project BookManager
+dotnet run --project BookManager/BookManager.csproj --urls http://0.0.0.0:5236
 ```
 
-## Swagger
-
-После запуска Swagger доступен по адресу:
+Swagger:
 
 ```text
-http://localhost:<port>/swagger
+http://127.0.0.1:5236/swagger
 ```
-
-или
-
-```text
-https://localhost:<port>/swagger
-```
-
-Точный адрес будет показан в консоли после запуска приложения.
 
 ## Запуск тестов
 
@@ -63,158 +93,29 @@ https://localhost:<port>/swagger
 dotnet test EventService.Tests/EventService.Tests.csproj
 ```
 
-## Модель Event
+## Проверка через Swagger
 
-Событие содержит поля:
-
-- `id` — уникальный идентификатор
-- `title` — название мероприятия
-- `description` — описание мероприятия
-- `startAt` — дата и время начала
-- `endAt` — дата и время окончания
-
-## API
-
-### GET /events
-
-Возвращает список мероприятий с поддержкой фильтрации и пагинации.
-
-#### Query-параметры
-
-- `title` *(string, optional)* — поиск по названию, частичное совпадение без учёта регистра
-- `from` *(DateTime, optional)* — события, начинающиеся не раньше указанной даты
-- `to` *(DateTime, optional)* — события, заканчивающиеся не позже указанной даты
-- `page` *(int, optional, default = 1)* — номер страницы
-- `pageSize` *(int, optional, default = 10)* — размер страницы
-
-#### Примеры
-
-Получить первую страницу событий:
+1. Создать мероприятие:
 
 ```http
-GET /events
+POST /events
 ```
 
-Поиск по названию:
+2. Скопировать его `id`.
+
+3. Создать бронирование:
 
 ```http
-GET /events?title=meeting
+POST /events/{eventId}/book
 ```
 
-Фильтрация по датам:
+4. Проверить статус бронирования:
 
 ```http
-GET /events?from=2026-05-01&to=2026-06-01
+GET /bookings/{bookingId}
 ```
 
-Фильтрация с пагинацией:
+Сразу после создания статус должен быть `Pending`.
 
-```http
-GET /events?title=team&page=1&pageSize=5
-```
+Через несколько секунд повторный запрос должен вернуть статус `Confirmed` и заполненное поле `ProcessedAt`.
 
----
-
-### GET /events/{id}
-
-Возвращает мероприятие по идентификатору.
-
-Если мероприятие не найдено, возвращается `404 Not Found`.
-
----
-
-### POST /events
-
-Создаёт новое мероприятие.
-
-При успешном создании возвращается `201 Created`.
-
-#### Пример тела запроса
-
-```json
-{
-  "title": "Team meeting",
-  "description": "Sprint planning",
-  "startAt": "2026-04-22T10:00:00",
-  "endAt": "2026-04-22T11:00:00"
-}
-```
-
----
-
-### PUT /events/{id}
-
-Полностью обновляет мероприятие по идентификатору.
-
-Если мероприятие не найдено, возвращается `404 Not Found`.
-
-#### Пример тела запроса
-
-```json
-{
-  "title": "Updated meeting",
-  "description": "Updated description",
-  "startAt": "2026-04-22T12:00:00",
-  "endAt": "2026-04-22T13:30:00"
-}
-```
-
----
-
-### DELETE /events/{id}
-
-Удаляет мероприятие по идентификатору.
-
-Если мероприятие не найдено, возвращается `404 Not Found`.
-
-## Валидация
-
-Проверяются следующие правила:
-
-- `title` обязателен
-- `startAt` обязателен
-- `endAt` обязателен
-- `endAt` должен быть позже `startAt`
-
-## Формат ошибок
-
-Для ошибок используется единый JSON-формат на основе `ProblemDetails`.
-
-### Пример 400 Bad Request
-
-```json
-{
-  "status": 400,
-  "title": "Validation error",
-  "detail": "Page must be greater than 0."
-}
-```
-
-### Пример 404 Not Found
-
-```json
-{
-  "status": 404,
-  "title": "Resource not found",
-  "detail": "Event with id '00000000-0000-0000-0000-000000000000' was not found."
-}
-```
-
-### Пример 500 Internal Server Error
-
-```json
-{
-  "status": 500,
-  "title": "Internal server error",
-  "detail": "An unexpected error occurred."
-}
-```
-
-## Особенности реализации
-
-- данные хранятся в памяти приложения
-- бизнес-логика вынесена в `EventService`
-- используется DI
-- фильтрация и пагинация реализованы через LINQ
-- глобальная обработка ошибок вынесена в middleware
-- юнит-тесты написаны с использованием xUnit
