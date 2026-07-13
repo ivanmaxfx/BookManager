@@ -49,7 +49,13 @@ builder.Services.AddSwaggerGen(options =>
     }
 });
 
-builder.Services.AddSingleton<IEventService, EventService>();
+builder.Services.AddSingleton<
+    IEventStore,
+    InMemoryEventStore>();
+
+builder.Services.AddSingleton<
+    IEventService,
+    EventService>();
 
 builder.Services.AddSingleton<
     IBookingStore,
