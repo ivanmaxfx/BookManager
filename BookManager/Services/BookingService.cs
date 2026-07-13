@@ -5,13 +5,11 @@ using MyWebApiProject.Models;
 
 namespace MyWebApiProject.Services
 {
-    /// <summary>
-    /// Бизнес-логика работы с бронированиями.
-    /// </summary>
     public class BookingService : IBookingService
     {
         private readonly IEventService _eventService;
         private readonly IBookingStore _bookingStore;
+        private readonly object _bookingLock = new();
 
         public BookingService(
             IEventService eventService,
@@ -27,16 +25,36 @@ namespace MyWebApiProject.Services
         {
             cancellationToken.ThrowIfCancellationRequested();
 
-            // Проверяет, что мероприятие существует.
-            // При отсутствии EventService выбрасывает NotFoundException.
-            _eventService.GetById(eventId);
+            lock (_bookingLock)
+            {
+                cancellationToken.ThrowIfCancellationRequested();
 
-            var booking = Booking.CreatePending(eventId);
+                var eventItem = _eventService.GetById(eventId);
 
-            _bookingStore.Add(booking);
+                if (!eventItem.TryReserveSeats())
+                {
+                    throw new NoAvailableSeatsException();
+                }
 
-            return Task.FromResult(
-                BookingInfo.FromBooking(booking));
+                try
+                {
+                    _eventService.Update(eventItem.Id, eventItem);
+
+                    var booking = Booking.CreatePending(eventId);
+
+                    _bookingStore.Add(booking);
+
+                    return Task.FromResult(
+                        BookingInfo.FromBooking(booking));
+                }
+                catch
+                {
+                    eventItem.ReleaseSeats();
+                    _eventService.Update(eventItem.Id, eventItem);
+
+                    throw;
+                }
+            }
         }
 
         public Task<BookingInfo> GetBookingByIdAsync(
@@ -51,8 +69,9 @@ namespace MyWebApiProject.Services
                 BookingInfo.FromBooking(booking));
         }
 
-        public Task<IReadOnlyCollection<BookingInfo>> GetPendingBookingsAsync(
-            CancellationToken cancellationToken = default)
+        public Task<IReadOnlyCollection<BookingInfo>>
+            GetPendingBookingsAsync(
+                CancellationToken cancellationToken = default)
         {
             cancellationToken.ThrowIfCancellationRequested();
 
@@ -61,7 +80,8 @@ namespace MyWebApiProject.Services
                 .Select(BookingInfo.FromBooking)
                 .ToList();
 
-            return Task.FromResult<IReadOnlyCollection<BookingInfo>>(result);
+            return Task.FromResult<
+                IReadOnlyCollection<BookingInfo>>(result);
         }
 
         public Task ConfirmBookingAsync(

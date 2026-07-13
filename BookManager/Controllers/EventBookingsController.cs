@@ -4,9 +4,6 @@ using MyWebApiProject.Services;
 
 namespace MyWebApiProject.Controllers
 {
-    /// <summary>
-    /// API для создания бронирований мероприятий.
-    /// </summary>
     [ApiController]
     [Route("events")]
     [Produces("application/json")]
@@ -20,9 +17,6 @@ namespace MyWebApiProject.Controllers
             _bookingService = bookingService;
         }
 
-        /// <summary>
-        /// Создать бронирование для мероприятия.
-        /// </summary>
         [HttpPost("{id:guid}/book")]
         [ProducesResponseType(
             typeof(BookingInfo),
@@ -30,6 +24,9 @@ namespace MyWebApiProject.Controllers
         [ProducesResponseType(
             typeof(ProblemDetails),
             StatusCodes.Status404NotFound)]
+        [ProducesResponseType(
+            typeof(ProblemDetails),
+            StatusCodes.Status409Conflict)]
         public async Task<ActionResult<BookingInfo>> CreateBooking(
             Guid id,
             CancellationToken cancellationToken)
