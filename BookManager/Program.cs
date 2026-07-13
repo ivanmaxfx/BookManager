@@ -65,10 +65,6 @@ builder.Services.AddSingleton<
     IBookingService,
     BookingService>();
 
-builder.Services.AddSingleton<
-    IBookingProcessor,
-    BookingProcessor>();
-
 builder.Services.Configure<BookingProcessingOptions>(
     builder.Configuration.GetSection("BookingProcessing"));
 
