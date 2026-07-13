@@ -97,6 +97,8 @@ namespace MyWebApiProject.Services
         {
             ValidateEvent(newEvent);
 
+            newEvent.AvailableSeats = newEvent.TotalSeats;
+
             try
             {
                 _eventStore.Add(newEvent);

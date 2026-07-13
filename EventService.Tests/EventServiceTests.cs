@@ -22,6 +22,7 @@ namespace EventService.Tests
                 Title = "Meeting",
                 Description = "Sprint planning",
                 StartAt = new DateTime(2026, 5, 1, 10, 0, 0),
+                TotalSeats = 10,
                 EndAt = new DateTime(2026, 5, 1, 11, 0, 0)
             };
 
@@ -56,6 +57,7 @@ namespace EventService.Tests
                 Id = Guid.NewGuid(),
                 Title = "Workshop",
                 StartAt = new DateTime(2026, 5, 2, 10, 0, 0),
+                TotalSeats = 10,
                 EndAt = new DateTime(2026, 5, 2, 12, 0, 0)
             };
 
@@ -102,6 +104,7 @@ namespace EventService.Tests
                 Title = "Old title",
                 Description = "Old description",
                 StartAt = new DateTime(2026, 5, 3, 9, 0, 0),
+                TotalSeats = 10,
                 EndAt = new DateTime(2026, 5, 3, 10, 0, 0)
             });
 
@@ -111,6 +114,7 @@ namespace EventService.Tests
                 Title = "New title",
                 Description = "New description",
                 StartAt = new DateTime(2026, 5, 3, 11, 0, 0),
+                TotalSeats = 10,
                 EndAt = new DateTime(2026, 5, 3, 12, 0, 0)
             };
 
@@ -137,6 +141,7 @@ namespace EventService.Tests
                 Id = id,
                 Title = "Updated title",
                 StartAt = new DateTime(2026, 5, 3, 11, 0, 0),
+                TotalSeats = 10,
                 EndAt = new DateTime(2026, 5, 3, 12, 0, 0)
             };
 
@@ -160,6 +165,7 @@ namespace EventService.Tests
                 Id = id,
                 Title = "To delete",
                 StartAt = new DateTime(2026, 5, 4, 9, 0, 0),
+                TotalSeats = 10,
                 EndAt = new DateTime(2026, 5, 4, 10, 0, 0)
             });
 
@@ -182,6 +188,7 @@ namespace EventService.Tests
                 Id = Guid.NewGuid(),
                 Title = "Team meeting",
                 StartAt = new DateTime(2026, 5, 1, 10, 0, 0),
+                TotalSeats = 10,
                 EndAt = new DateTime(2026, 5, 1, 11, 0, 0)
             });
 
@@ -190,6 +197,7 @@ namespace EventService.Tests
                 Id = Guid.NewGuid(),
                 Title = "Workshop",
                 StartAt = new DateTime(2026, 5, 2, 10, 0, 0),
+                TotalSeats = 10,
                 EndAt = new DateTime(2026, 5, 2, 11, 0, 0)
             });
 
@@ -216,6 +224,7 @@ namespace EventService.Tests
                 Id = Guid.NewGuid(),
                 Title = "Early event",
                 StartAt = new DateTime(2026, 5, 1, 10, 0, 0),
+                TotalSeats = 10,
                 EndAt = new DateTime(2026, 5, 1, 11, 0, 0)
             });
 
@@ -224,6 +233,7 @@ namespace EventService.Tests
                 Id = Guid.NewGuid(),
                 Title = "Late event",
                 StartAt = new DateTime(2026, 5, 10, 10, 0, 0),
+                TotalSeats = 10,
                 EndAt = new DateTime(2026, 5, 10, 11, 0, 0)
             });
 
@@ -253,6 +263,7 @@ namespace EventService.Tests
                     Id = Guid.NewGuid(),
                     Title = $"Event {i}",
                     StartAt = new DateTime(2026, 5, i, 10, 0, 0),
+                    TotalSeats = 10,
                     EndAt = new DateTime(2026, 5, i, 11, 0, 0)
                 });
             }
@@ -283,6 +294,7 @@ namespace EventService.Tests
                 Id = Guid.NewGuid(),
                 Title = "Team meeting",
                 StartAt = new DateTime(2026, 6, 1, 10, 0, 0),
+                TotalSeats = 10,
                 EndAt = new DateTime(2026, 6, 1, 11, 0, 0)
             });
 
@@ -291,6 +303,7 @@ namespace EventService.Tests
                 Id = Guid.NewGuid(),
                 Title = "Team meeting old",
                 StartAt = new DateTime(2026, 4, 1, 10, 0, 0),
+                TotalSeats = 10,
                 EndAt = new DateTime(2026, 4, 1, 11, 0, 0)
             });
 
@@ -319,6 +332,7 @@ namespace EventService.Tests
                 Id = Guid.NewGuid(),
                 Title = "   ",
                 StartAt = new DateTime(2026, 5, 1, 10, 0, 0),
+                TotalSeats = 10,
                 EndAt = new DateTime(2026, 5, 1, 11, 0, 0)
             };
 
@@ -342,6 +356,7 @@ namespace EventService.Tests
                 Id = id,
                 Title = "Valid event",
                 StartAt = new DateTime(2026, 5, 1, 10, 0, 0),
+                TotalSeats = 10,
                 EndAt = new DateTime(2026, 5, 1, 11, 0, 0)
             });
 
@@ -350,6 +365,7 @@ namespace EventService.Tests
                 Id = id,
                 Title = "Broken event",
                 StartAt = new DateTime(2026, 5, 1, 12, 0, 0),
+                TotalSeats = 10,
                 EndAt = new DateTime(2026, 5, 1, 11, 0, 0)
             };
 

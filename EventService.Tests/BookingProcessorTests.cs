@@ -26,6 +26,7 @@ namespace EventService.Tests
                 Id = Guid.NewGuid(),
                 Title = "Background processing test",
                 StartAt = new DateTime(2026, 8, 10, 10, 0, 0),
+                TotalSeats = 10,
                 EndAt = new DateTime(2026, 8, 10, 12, 0, 0)
             };
 

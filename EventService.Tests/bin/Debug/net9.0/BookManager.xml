@@ -4,11 +4,6 @@
         <name>BookManager</name>
     </assembly>
     <members>
-        <member name="T:MyWebApiProject.BackgroundServices.BookingBackgroundService">
-            <summary>
-            Периодически запускает обработку ожидающих бронирований.
-            </summary>
-        </member>
         <member name="T:MyWebApiProject.Controllers.BookingsController">
             <summary>
             API для получения информации о бронированиях.
@@ -17,52 +12,6 @@
         <member name="M:MyWebApiProject.Controllers.BookingsController.GetById(System.Guid,System.Threading.CancellationToken)">
             <summary>
             Получить текущее состояние бронирования.
-            </summary>
-        </member>
-        <member name="T:MyWebApiProject.Controllers.EventBookingsController">
-            <summary>
-            API для создания бронирований мероприятий.
-            </summary>
-        </member>
-        <member name="M:MyWebApiProject.Controllers.EventBookingsController.CreateBooking(System.Guid,System.Threading.CancellationToken)">
-            <summary>
-            Создать бронирование для мероприятия.
-            </summary>
-        </member>
-        <member name="T:MyWebApiProject.Controllers.EventsController">
-            <summary>
-            API для управления мероприятиями.
-            </summary>
-        </member>
-        <member name="M:MyWebApiProject.Controllers.EventsController.#ctor(MyWebApiProject.Services.IEventService)">
-            <summary>
-            Инициализирует новый экземпляр контроллера мероприятий.
-            </summary>
-            <param name="eventService">Сервис для работы с мероприятиями.</param>
-        </member>
-        <member name="M:MyWebApiProject.Controllers.EventsController.GetAll(MyWebApiProject.Dtos.EventQueryParameters)">
-            <summary>
-            Получить список мероприятий с фильтрацией и пагинацией.
-            </summary>
-        </member>
-        <member name="M:MyWebApiProject.Controllers.EventsController.GetById(System.Guid)">
-            <summary>
-            Получить мероприятие по идентификатору.
-            </summary>
-        </member>
-        <member name="M:MyWebApiProject.Controllers.EventsController.Create(MyWebApiProject.Dtos.EventRequest)">
-            <summary>
-            Создать новое мероприятие.
-            </summary>
-        </member>
-        <member name="M:MyWebApiProject.Controllers.EventsController.Update(System.Guid,MyWebApiProject.Dtos.EventRequest)">
-            <summary>
-            Обновить мероприятие по идентификатору.
-            </summary>
-        </member>
-        <member name="M:MyWebApiProject.Controllers.EventsController.Delete(System.Guid)">
-            <summary>
-            Удалить мероприятие по идентификатору.
             </summary>
         </member>
         <member name="T:MyWebApiProject.DataAccess.IBookingStore">
@@ -108,36 +57,6 @@
         <member name="P:MyWebApiProject.Dtos.EventQueryParameters.PageSize">
             <summary>
             Размер страницы.
-            </summary>
-        </member>
-        <member name="T:MyWebApiProject.Dtos.EventRequest">
-            <summary>
-            DTO для создания и обновления мероприятия.
-            </summary>
-        </member>
-        <member name="P:MyWebApiProject.Dtos.EventRequest.Title">
-            <summary>
-            Название мероприятия.
-            </summary>
-        </member>
-        <member name="P:MyWebApiProject.Dtos.EventRequest.Description">
-            <summary>
-            Описание мероприятия.
-            </summary>
-        </member>
-        <member name="P:MyWebApiProject.Dtos.EventRequest.StartAt">
-            <summary>
-            Дата и время начала мероприятия.
-            </summary>
-        </member>
-        <member name="P:MyWebApiProject.Dtos.EventRequest.EndAt">
-            <summary>
-            Дата и время окончания мероприятия.
-            </summary>
-        </member>
-        <member name="M:MyWebApiProject.Dtos.EventRequest.Validate(System.ComponentModel.DataAnnotations.ValidationContext)">
-            <summary>
-            Выполняет дополнительную валидацию модели.
             </summary>
         </member>
         <member name="T:MyWebApiProject.Dtos.PaginatedResult`1">
@@ -245,36 +164,6 @@
             Бронирование отклонено.
             </summary>
         </member>
-        <member name="T:MyWebApiProject.Models.Event">
-            <summary>
-            Представляет мероприятие.
-            </summary>
-        </member>
-        <member name="P:MyWebApiProject.Models.Event.Id">
-            <summary>
-            Уникальный идентификатор мероприятия.
-            </summary>
-        </member>
-        <member name="P:MyWebApiProject.Models.Event.Title">
-            <summary>
-            Название мероприятия.
-            </summary>
-        </member>
-        <member name="P:MyWebApiProject.Models.Event.Description">
-            <summary>
-            Описание мероприятия.
-            </summary>
-        </member>
-        <member name="P:MyWebApiProject.Models.Event.StartAt">
-            <summary>
-            Дата и время начала мероприятия.
-            </summary>
-        </member>
-        <member name="P:MyWebApiProject.Models.Event.EndAt">
-            <summary>
-            Дата и время окончания мероприятия.
-            </summary>
-        </member>
         <member name="T:MyWebApiProject.Options.BookingProcessingOptions">
             <summary>
             Настройки фоновой обработки бронирований.
@@ -283,16 +172,6 @@
         <member name="T:MyWebApiProject.Services.BookingProcessor">
             <summary>
             Выполняет отложенную обработку бронирований.
-            </summary>
-        </member>
-        <member name="T:MyWebApiProject.Services.BookingService">
-            <summary>
-            Бизнес-логика работы с бронированиями.
-            </summary>
-        </member>
-        <member name="T:MyWebApiProject.Services.EventService">
-            <summary>
-            Потокобезопасный сервис для хранения мероприятий в памяти приложения.
             </summary>
         </member>
         <member name="T:MyWebApiProject.Services.IBookingProcessor">
