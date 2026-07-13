@@ -169,16 +169,6 @@
             Настройки фоновой обработки бронирований.
             </summary>
         </member>
-        <member name="T:MyWebApiProject.Services.BookingProcessor">
-            <summary>
-            Выполняет отложенную обработку бронирований.
-            </summary>
-        </member>
-        <member name="T:MyWebApiProject.Services.IBookingProcessor">
-            <summary>
-            Обработчик ожидающих бронирований.
-            </summary>
-        </member>
         <member name="T:MyWebApiProject.Services.IBookingService">
             <summary>
             Сервис для работы с бронированиями.

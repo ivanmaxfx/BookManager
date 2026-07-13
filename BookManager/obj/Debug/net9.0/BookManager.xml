@@ -4,11 +4,6 @@
         <name>BookManager</name>
     </assembly>
     <members>
-        <member name="T:MyWebApiProject.BackgroundServices.BookingBackgroundService">
-            <summary>
-            Периодически запускает обработку ожидающих бронирований.
-            </summary>
-        </member>
         <member name="T:MyWebApiProject.Controllers.BookingsController">
             <summary>
             API для получения информации о бронированиях.
@@ -172,16 +167,6 @@
         <member name="T:MyWebApiProject.Options.BookingProcessingOptions">
             <summary>
             Настройки фоновой обработки бронирований.
-            </summary>
-        </member>
-        <member name="T:MyWebApiProject.Services.BookingProcessor">
-            <summary>
-            Выполняет отложенную обработку бронирований.
-            </summary>
-        </member>
-        <member name="T:MyWebApiProject.Services.IBookingProcessor">
-            <summary>
-            Обработчик ожидающих бронирований.
             </summary>
         </member>
         <member name="T:MyWebApiProject.Services.IBookingService">
