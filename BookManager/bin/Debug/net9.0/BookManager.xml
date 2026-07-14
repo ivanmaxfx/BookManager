@@ -94,11 +94,6 @@
             Исключение для ошибок валидации бизнес-логики.
             </summary>
         </member>
-        <member name="T:MyWebApiProject.Middleware.ExceptionHandlingMiddleware">
-            <summary>
-            Middleware для глобальной обработки исключений.
-            </summary>
-        </member>
         <member name="T:MyWebApiProject.Models.Booking">
             <summary>
             Бронирование мероприятия.
