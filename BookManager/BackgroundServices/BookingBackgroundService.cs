@@ -1,6 +1,6 @@
-using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Options;
-using MyWebApiProject.DataAccess;
+using MyWebApiProject.DataAccess.Repositories;
+using MyWebApiProject.DataAccess.UnitOfWork;
 using MyWebApiProject.Models;
 using MyWebApiProject.Options;
 
@@ -50,8 +50,7 @@ namespace MyWebApiProject.BackgroundServices
                                     bookingId,
                                     stoppingToken));
 
-                    await Task.WhenAll(
-                        processingTasks);
+                    await Task.WhenAll(processingTasks);
                 }
                 catch (OperationCanceledException)
                     when (stoppingToken.IsCancellationRequested)
@@ -82,23 +81,18 @@ namespace MyWebApiProject.BackgroundServices
                 "Booking background service stopped");
         }
 
-        private async Task<List<Guid>>
+        private async Task<IReadOnlyCollection<Guid>>
             GetPendingBookingIdsAsync(
                 CancellationToken cancellationToken)
         {
             await using var scope =
                 _scopeFactory.CreateAsyncScope();
 
-            var context = scope.ServiceProvider
-                .GetRequiredService<AppDbContext>();
+            var repository = scope.ServiceProvider
+                .GetRequiredService<IBookingRepository>();
 
-            return await context.Bookings
-                .AsNoTracking()
-                .Where(booking =>
-                    booking.Status ==
-                    BookingStatus.Pending)
-                .Select(booking => booking.Id)
-                .ToListAsync(cancellationToken);
+            return await repository.GetPendingIdsAsync(
+                cancellationToken);
         }
 
         private async Task ProcessBookingAsync(
@@ -107,7 +101,6 @@ namespace MyWebApiProject.BackgroundServices
         {
             try
             {
-                // Задержки всех задач выполняются параллельно.
                 await Task.Delay(
                     _processingDelay,
                     stoppingToken);
@@ -115,12 +108,24 @@ namespace MyWebApiProject.BackgroundServices
                 await using var scope =
                     _scopeFactory.CreateAsyncScope();
 
-                var context = scope.ServiceProvider
-                    .GetRequiredService<AppDbContext>();
+                var bookingRepository =
+                    scope.ServiceProvider
+                        .GetRequiredService<
+                            IBookingRepository>();
 
-                var booking = await context.Bookings
-                    .FirstOrDefaultAsync(
-                        item => item.Id == bookingId,
+                var eventRepository =
+                    scope.ServiceProvider
+                        .GetRequiredService<
+                            IEventRepository>();
+
+                var unitOfWork =
+                    scope.ServiceProvider
+                        .GetRequiredService<IUnitOfWork>();
+
+                var booking =
+                    await bookingRepository.GetByIdAsync(
+                        bookingId,
+                        trackChanges: true,
                         stoppingToken);
 
                 if (booking is null ||
@@ -130,17 +135,16 @@ namespace MyWebApiProject.BackgroundServices
                 }
 
                 var eventExists =
-                    await context.Events.AnyAsync(
-                        eventItem =>
-                            eventItem.Id ==
-                            booking.EventId,
+                    await eventRepository.ExistsAsync(
+                        booking.EventId,
                         stoppingToken);
 
                 if (!eventExists)
                 {
                     booking.Reject();
+                    bookingRepository.Update(booking);
 
-                    await context.SaveChangesAsync(
+                    await unitOfWork.SaveChangesAsync(
                         stoppingToken);
 
                     _logger.LogWarning(
@@ -152,8 +156,9 @@ namespace MyWebApiProject.BackgroundServices
                 }
 
                 booking.Confirm();
+                bookingRepository.Update(booking);
 
-                await context.SaveChangesAsync(
+                await unitOfWork.SaveChangesAsync(
                     stoppingToken);
 
                 _logger.LogInformation(
@@ -187,12 +192,24 @@ namespace MyWebApiProject.BackgroundServices
                 await using var scope =
                     _scopeFactory.CreateAsyncScope();
 
-                var context = scope.ServiceProvider
-                    .GetRequiredService<AppDbContext>();
+                var bookingRepository =
+                    scope.ServiceProvider
+                        .GetRequiredService<
+                            IBookingRepository>();
 
-                var booking = await context.Bookings
-                    .FirstOrDefaultAsync(
-                        item => item.Id == bookingId,
+                var eventRepository =
+                    scope.ServiceProvider
+                        .GetRequiredService<
+                            IEventRepository>();
+
+                var unitOfWork =
+                    scope.ServiceProvider
+                        .GetRequiredService<IUnitOfWork>();
+
+                var booking =
+                    await bookingRepository.GetByIdAsync(
+                        bookingId,
+                        trackChanges: true,
                         cancellationToken);
 
                 if (booking is null ||
@@ -201,17 +218,22 @@ namespace MyWebApiProject.BackgroundServices
                     return;
                 }
 
-                var eventItem = await context.Events
-                    .FirstOrDefaultAsync(
-                        item =>
-                            item.Id == booking.EventId,
+                var eventItem =
+                    await eventRepository.GetByIdAsync(
+                        booking.EventId,
+                        trackChanges: true,
                         cancellationToken);
 
                 booking.Reject();
+                bookingRepository.Update(booking);
 
-                eventItem?.ReleaseSeats();
+                if (eventItem is not null)
+                {
+                    eventItem.ReleaseSeats();
+                    eventRepository.Update(eventItem);
+                }
 
-                await context.SaveChangesAsync(
+                await unitOfWork.SaveChangesAsync(
                     cancellationToken);
 
                 _logger.LogWarning(

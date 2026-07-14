@@ -1,5 +1,6 @@
 using Microsoft.EntityFrameworkCore;
-using MyWebApiProject.DataAccess;
+using MyWebApiProject.DataAccess.Repositories;
+using MyWebApiProject.DataAccess.UnitOfWork;
 using MyWebApiProject.Dtos;
 using MyWebApiProject.Exceptions;
 using MyWebApiProject.Models;
@@ -8,11 +9,15 @@ namespace MyWebApiProject.Services
 {
     public sealed class EventService : IEventService
     {
-        private readonly AppDbContext _context;
+        private readonly IEventRepository _eventRepository;
+        private readonly IUnitOfWork _unitOfWork;
 
-        public EventService(AppDbContext context)
+        public EventService(
+            IEventRepository eventRepository,
+            IUnitOfWork unitOfWork)
         {
-            _context = context;
+            _eventRepository = eventRepository;
+            _unitOfWork = unitOfWork;
         }
 
         public async Task<PaginatedResult<Event>> GetAllAsync(
@@ -21,49 +26,27 @@ namespace MyWebApiProject.Services
         {
             ValidateQueryParameters(queryParameters);
 
-            var query = _context.Events
-                .AsNoTracking()
-                .AsQueryable();
+            var title = queryParameters.Title?.Trim();
 
-            if (!string.IsNullOrWhiteSpace(
-                    queryParameters.Title))
-            {
-                var normalizedTitle = queryParameters.Title
-                    .Trim()
-                    .ToLower();
+            var totalCount =
+                await _eventRepository.CountAsync(
+                    title,
+                    queryParameters.From,
+                    queryParameters.To,
+                    cancellationToken);
 
-                query = query.Where(eventItem =>
-                    eventItem.Title
-                        .ToLower()
-                        .Contains(normalizedTitle));
-            }
+            var skip =
+                (queryParameters.Page - 1) *
+                queryParameters.PageSize;
 
-            if (queryParameters.From.HasValue)
-            {
-                query = query.Where(eventItem =>
-                    eventItem.StartAt >=
-                    queryParameters.From.Value);
-            }
-
-            if (queryParameters.To.HasValue)
-            {
-                query = query.Where(eventItem =>
-                    eventItem.EndAt <=
-                    queryParameters.To.Value);
-            }
-
-            query = query.OrderBy(
-                eventItem => eventItem.StartAt);
-
-            var totalCount = await query.CountAsync(
-                cancellationToken);
-
-            var items = await query
-                .Skip(
-                    (queryParameters.Page - 1) *
-                    queryParameters.PageSize)
-                .Take(queryParameters.PageSize)
-                .ToListAsync(cancellationToken);
+            var items =
+                await _eventRepository.GetPageAsync(
+                    title,
+                    queryParameters.From,
+                    queryParameters.To,
+                    skip,
+                    queryParameters.PageSize,
+                    cancellationToken);
 
             return new PaginatedResult<Event>
             {
@@ -78,10 +61,10 @@ namespace MyWebApiProject.Services
             Guid id,
             CancellationToken cancellationToken = default)
         {
-            var eventItem = await _context.Events
-                .AsNoTracking()
-                .FirstOrDefaultAsync(
-                    item => item.Id == id,
+            var eventItem =
+                await _eventRepository.GetByIdAsync(
+                    id,
+                    trackChanges: false,
                     cancellationToken);
 
             return eventItem
@@ -98,13 +81,13 @@ namespace MyWebApiProject.Services
             newEvent.AvailableSeats =
                 newEvent.TotalSeats;
 
-            await _context.Events.AddAsync(
+            await _eventRepository.AddAsync(
                 newEvent,
                 cancellationToken);
 
             try
             {
-                await _context.SaveChangesAsync(
+                await _unitOfWork.SaveChangesAsync(
                     cancellationToken);
             }
             catch (DbUpdateException)
@@ -123,9 +106,10 @@ namespace MyWebApiProject.Services
         {
             ValidateEvent(updatedEvent);
 
-            var existingEvent = await _context.Events
-                .FirstOrDefaultAsync(
-                    item => item.Id == id,
+            var existingEvent =
+                await _eventRepository.GetByIdAsync(
+                    id,
+                    trackChanges: true,
                     cancellationToken);
 
             if (existingEvent is null)
@@ -162,7 +146,9 @@ namespace MyWebApiProject.Services
             existingEvent.AvailableSeats =
                 updatedEvent.TotalSeats - reservedSeats;
 
-            await _context.SaveChangesAsync(
+            _eventRepository.Update(existingEvent);
+
+            await _unitOfWork.SaveChangesAsync(
                 cancellationToken);
         }
 
@@ -170,9 +156,10 @@ namespace MyWebApiProject.Services
             Guid id,
             CancellationToken cancellationToken = default)
         {
-            var eventItem = await _context.Events
-                .FirstOrDefaultAsync(
-                    item => item.Id == id,
+            var eventItem =
+                await _eventRepository.GetByIdAsync(
+                    id,
+                    trackChanges: true,
                     cancellationToken);
 
             if (eventItem is null)
@@ -181,9 +168,9 @@ namespace MyWebApiProject.Services
                     $"Event with id '{id}' was not found.");
             }
 
-            _context.Events.Remove(eventItem);
+            _eventRepository.Remove(eventItem);
 
-            await _context.SaveChangesAsync(
+            await _unitOfWork.SaveChangesAsync(
                 cancellationToken);
         }
 

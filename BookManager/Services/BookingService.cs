@@ -1,5 +1,5 @@
-using Microsoft.EntityFrameworkCore;
-using MyWebApiProject.DataAccess;
+using MyWebApiProject.DataAccess.Repositories;
+using MyWebApiProject.DataAccess.UnitOfWork;
 using MyWebApiProject.Dtos;
 using MyWebApiProject.Exceptions;
 using MyWebApiProject.Models;
@@ -11,11 +11,18 @@ namespace MyWebApiProject.Services
         private static readonly SemaphoreSlim BookingSemaphore =
             new(1, 1);
 
-        private readonly AppDbContext _context;
+        private readonly IEventRepository _eventRepository;
+        private readonly IBookingRepository _bookingRepository;
+        private readonly IUnitOfWork _unitOfWork;
 
-        public BookingService(AppDbContext context)
+        public BookingService(
+            IEventRepository eventRepository,
+            IBookingRepository bookingRepository,
+            IUnitOfWork unitOfWork)
         {
-            _context = context;
+            _eventRepository = eventRepository;
+            _bookingRepository = bookingRepository;
+            _unitOfWork = unitOfWork;
         }
 
         public async Task<BookingInfo> CreateBookingAsync(
@@ -27,9 +34,10 @@ namespace MyWebApiProject.Services
 
             try
             {
-                var eventItem = await _context.Events
-                    .FirstOrDefaultAsync(
-                        item => item.Id == eventId,
+                var eventItem =
+                    await _eventRepository.GetByIdAsync(
+                        eventId,
+                        trackChanges: true,
                         cancellationToken);
 
                 if (eventItem is null)
@@ -46,13 +54,13 @@ namespace MyWebApiProject.Services
                 var booking =
                     Booking.CreatePending(eventId);
 
-                await _context.Bookings.AddAsync(
+                _eventRepository.Update(eventItem);
+
+                await _bookingRepository.AddAsync(
                     booking,
                     cancellationToken);
 
-                // Сохраняет одновременно уменьшение числа мест
-                // и новую бронь в одной транзакции SaveChanges.
-                await _context.SaveChangesAsync(
+                await _unitOfWork.SaveChangesAsync(
                     cancellationToken);
 
                 return BookingInfo.FromBooking(
@@ -68,10 +76,10 @@ namespace MyWebApiProject.Services
             Guid bookingId,
             CancellationToken cancellationToken = default)
         {
-            var booking = await _context.Bookings
-                .AsNoTracking()
-                .FirstOrDefaultAsync(
-                    item => item.Id == bookingId,
+            var booking =
+                await _bookingRepository.GetByIdAsync(
+                    bookingId,
+                    trackChanges: false,
                     cancellationToken);
 
             if (booking is null)
@@ -88,14 +96,9 @@ namespace MyWebApiProject.Services
             GetPendingBookingsAsync(
                 CancellationToken cancellationToken = default)
         {
-            var bookings = await _context.Bookings
-                .AsNoTracking()
-                .Where(booking =>
-                    booking.Status ==
-                    BookingStatus.Pending)
-                .OrderBy(booking =>
-                    booking.CreatedAt)
-                .ToListAsync(cancellationToken);
+            var bookings =
+                await _bookingRepository.GetPendingAsync(
+                    cancellationToken);
 
             return bookings
                 .Select(BookingInfo.FromBooking)
@@ -112,8 +115,9 @@ namespace MyWebApiProject.Services
                     cancellationToken);
 
             booking.Confirm();
+            _bookingRepository.Update(booking);
 
-            await _context.SaveChangesAsync(
+            await _unitOfWork.SaveChangesAsync(
                 cancellationToken);
         }
 
@@ -127,8 +131,9 @@ namespace MyWebApiProject.Services
                     cancellationToken);
 
             booking.Reject();
+            _bookingRepository.Update(booking);
 
-            await _context.SaveChangesAsync(
+            await _unitOfWork.SaveChangesAsync(
                 cancellationToken);
         }
 
@@ -137,9 +142,10 @@ namespace MyWebApiProject.Services
                 Guid bookingId,
                 CancellationToken cancellationToken)
         {
-            var booking = await _context.Bookings
-                .FirstOrDefaultAsync(
-                    item => item.Id == bookingId,
+            var booking =
+                await _bookingRepository.GetByIdAsync(
+                    bookingId,
+                    trackChanges: true,
                     cancellationToken);
 
             return booking

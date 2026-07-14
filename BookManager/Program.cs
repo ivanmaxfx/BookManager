@@ -4,6 +4,8 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using MyWebApiProject.BackgroundServices;
 using MyWebApiProject.DataAccess;
+using MyWebApiProject.DataAccess.Repositories;
+using MyWebApiProject.DataAccess.UnitOfWork;
 using MyWebApiProject.Middleware;
 using MyWebApiProject.Options;
 using MyWebApiProject.Services;
@@ -59,6 +61,18 @@ var connectionString =
 builder.Services.AddDbContext<AppDbContext>(
     options => options.UseNpgsql(
         connectionString));
+
+builder.Services.AddScoped<
+    IEventRepository,
+    EventRepository>();
+
+builder.Services.AddScoped<
+    IBookingRepository,
+    BookingRepository>();
+
+builder.Services.AddScoped<
+    IUnitOfWork,
+    UnitOfWork>();
 
 builder.Services.AddScoped<
     IEventService,
