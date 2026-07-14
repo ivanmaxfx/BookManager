@@ -4,9 +4,13 @@ namespace MyWebApiProject.Models
 {
     public class Event
     {
+        private Event()
+        {
+        }
+
         public Guid Id { get; set; }
 
-        public string Title { get; set; } = string.Empty;
+        public string Title { get; set; } = null!;
 
         public string? Description { get; set; }
 
@@ -30,7 +34,8 @@ namespace MyWebApiProject.Models
         {
             if (string.IsNullOrWhiteSpace(title))
             {
-                throw new ValidationException("Title is required.");
+                throw new ValidationException(
+                    "Title is required.");
             }
 
             if (endAt <= startAt)
@@ -72,6 +77,7 @@ namespace MyWebApiProject.Models
             }
 
             AvailableSeats -= count;
+
             return true;
         }
 

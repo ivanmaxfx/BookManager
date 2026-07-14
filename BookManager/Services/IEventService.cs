@@ -3,19 +3,27 @@ using MyWebApiProject.Models;
 
 namespace MyWebApiProject.Services
 {
-    /// <summary>
-    /// Сервис для работы с мероприятиями.
-    /// </summary>
     public interface IEventService
     {
-        PaginatedResult<Event> GetAll(EventQueryParameters queryParameters);
+        Task<PaginatedResult<Event>> GetAllAsync(
+            EventQueryParameters queryParameters,
+            CancellationToken cancellationToken = default);
 
-        Event GetById(Guid id);
+        Task<Event> GetByIdAsync(
+            Guid id,
+            CancellationToken cancellationToken = default);
 
-        Event Create(Event newEvent);
+        Task<Event> CreateAsync(
+            Event newEvent,
+            CancellationToken cancellationToken = default);
 
-        void Update(Guid id, Event updatedEvent);
+        Task UpdateAsync(
+            Guid id,
+            Event updatedEvent,
+            CancellationToken cancellationToken = default);
 
-        void Delete(Guid id);
+        Task DeleteAsync(
+            Guid id,
+            CancellationToken cancellationToken = default);
     }
 }

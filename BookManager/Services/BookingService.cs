@@ -1,3 +1,4 @@
+using Microsoft.EntityFrameworkCore;
 using MyWebApiProject.DataAccess;
 using MyWebApiProject.Dtos;
 using MyWebApiProject.Exceptions;
@@ -5,116 +6,143 @@ using MyWebApiProject.Models;
 
 namespace MyWebApiProject.Services
 {
-    public class BookingService : IBookingService
+    public sealed class BookingService : IBookingService
     {
-        private readonly IEventService _eventService;
-        private readonly IBookingStore _bookingStore;
-        private readonly object _bookingLock = new();
+        private static readonly SemaphoreSlim BookingSemaphore =
+            new(1, 1);
 
-        public BookingService(
-            IEventService eventService,
-            IBookingStore bookingStore)
+        private readonly AppDbContext _context;
+
+        public BookingService(AppDbContext context)
         {
-            _eventService = eventService;
-            _bookingStore = bookingStore;
+            _context = context;
         }
 
-        public Task<BookingInfo> CreateBookingAsync(
+        public async Task<BookingInfo> CreateBookingAsync(
             Guid eventId,
             CancellationToken cancellationToken = default)
         {
-            cancellationToken.ThrowIfCancellationRequested();
+            await BookingSemaphore.WaitAsync(
+                cancellationToken);
 
-            lock (_bookingLock)
+            try
             {
-                cancellationToken.ThrowIfCancellationRequested();
+                var eventItem = await _context.Events
+                    .FirstOrDefaultAsync(
+                        item => item.Id == eventId,
+                        cancellationToken);
 
-                var eventItem = _eventService.GetById(eventId);
+                if (eventItem is null)
+                {
+                    throw new NotFoundException(
+                        $"Event with id '{eventId}' was not found.");
+                }
 
                 if (!eventItem.TryReserveSeats())
                 {
                     throw new NoAvailableSeatsException();
                 }
 
-                try
-                {
-                    _eventService.Update(eventItem.Id, eventItem);
+                var booking =
+                    Booking.CreatePending(eventId);
 
-                    var booking = Booking.CreatePending(eventId);
+                await _context.Bookings.AddAsync(
+                    booking,
+                    cancellationToken);
 
-                    _bookingStore.Add(booking);
+                // Сохраняет одновременно уменьшение числа мест
+                // и новую бронь в одной транзакции SaveChanges.
+                await _context.SaveChangesAsync(
+                    cancellationToken);
 
-                    return Task.FromResult(
-                        BookingInfo.FromBooking(booking));
-                }
-                catch
-                {
-                    eventItem.ReleaseSeats();
-                    _eventService.Update(eventItem.Id, eventItem);
-
-                    throw;
-                }
+                return BookingInfo.FromBooking(
+                    booking);
+            }
+            finally
+            {
+                BookingSemaphore.Release();
             }
         }
 
-        public Task<BookingInfo> GetBookingByIdAsync(
+        public async Task<BookingInfo> GetBookingByIdAsync(
             Guid bookingId,
             CancellationToken cancellationToken = default)
         {
-            cancellationToken.ThrowIfCancellationRequested();
+            var booking = await _context.Bookings
+                .AsNoTracking()
+                .FirstOrDefaultAsync(
+                    item => item.Id == bookingId,
+                    cancellationToken);
 
-            var booking = GetBookingOrThrow(bookingId);
+            if (booking is null)
+            {
+                throw new NotFoundException(
+                    $"Booking with id '{bookingId}' was not found.");
+            }
 
-            return Task.FromResult(
-                BookingInfo.FromBooking(booking));
+            return BookingInfo.FromBooking(
+                booking);
         }
 
-        public Task<IReadOnlyCollection<BookingInfo>>
+        public async Task<IReadOnlyCollection<BookingInfo>>
             GetPendingBookingsAsync(
                 CancellationToken cancellationToken = default)
         {
-            cancellationToken.ThrowIfCancellationRequested();
+            var bookings = await _context.Bookings
+                .AsNoTracking()
+                .Where(booking =>
+                    booking.Status ==
+                    BookingStatus.Pending)
+                .OrderBy(booking =>
+                    booking.CreatedAt)
+                .ToListAsync(cancellationToken);
 
-            var result = _bookingStore
-                .GetPending()
+            return bookings
                 .Select(BookingInfo.FromBooking)
                 .ToList();
-
-            return Task.FromResult<
-                IReadOnlyCollection<BookingInfo>>(result);
         }
 
-        public Task ConfirmBookingAsync(
+        public async Task ConfirmBookingAsync(
             Guid bookingId,
             CancellationToken cancellationToken = default)
         {
-            cancellationToken.ThrowIfCancellationRequested();
-
-            var booking = GetBookingOrThrow(bookingId);
+            var booking =
+                await GetTrackedBookingOrThrowAsync(
+                    bookingId,
+                    cancellationToken);
 
             booking.Confirm();
-            _bookingStore.Update(booking);
 
-            return Task.CompletedTask;
+            await _context.SaveChangesAsync(
+                cancellationToken);
         }
 
-        public Task RejectBookingAsync(
+        public async Task RejectBookingAsync(
             Guid bookingId,
             CancellationToken cancellationToken = default)
         {
-            cancellationToken.ThrowIfCancellationRequested();
-
-            var booking = GetBookingOrThrow(bookingId);
+            var booking =
+                await GetTrackedBookingOrThrowAsync(
+                    bookingId,
+                    cancellationToken);
 
             booking.Reject();
-            _bookingStore.Update(booking);
 
-            return Task.CompletedTask;
+            await _context.SaveChangesAsync(
+                cancellationToken);
         }
 
-        private Booking GetBookingOrThrow(Guid bookingId)
+        private async Task<Booking>
+            GetTrackedBookingOrThrowAsync(
+                Guid bookingId,
+                CancellationToken cancellationToken)
         {
-            return _bookingStore.GetById(bookingId)
+            var booking = await _context.Bookings
+                .FirstOrDefaultAsync(
+                    item => item.Id == bookingId,
+                    cancellationToken);
+
+            return booking
                 ?? throw new NotFoundException(
                     $"Booking with id '{bookingId}' was not found.");
         }
