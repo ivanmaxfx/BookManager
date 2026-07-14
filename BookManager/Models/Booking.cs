@@ -19,6 +19,8 @@ namespace MyWebApiProject.Models
         /// </summary>
         public Guid EventId { get; private set; }
 
+        public Event Event { get; private set; } = null!;
+
         /// <summary>
         /// Текущий статус бронирования.
         /// </summary>

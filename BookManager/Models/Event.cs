@@ -18,6 +18,9 @@ namespace MyWebApiProject.Models
 
         public int AvailableSeats { get; set; }
 
+        public ICollection<Booking> Bookings { get; private set; } =
+            new List<Booking>();
+
         public static Event Create(
             string title,
             string? description,
