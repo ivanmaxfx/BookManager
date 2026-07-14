@@ -1,6 +1,7 @@
 using System.Reflection;
 using System.Text.Json.Serialization;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.EntityFrameworkCore;
 using MyWebApiProject.BackgroundServices;
 using MyWebApiProject.DataAccess;
 using MyWebApiProject.Middleware;
@@ -49,19 +50,21 @@ builder.Services.AddSwaggerGen(options =>
     }
 });
 
-builder.Services.AddSingleton<
-    IEventStore,
-    InMemoryEventStore>();
+var connectionString =
+    builder.Configuration.GetConnectionString(
+        "DefaultConnection")
+    ?? throw new InvalidOperationException(
+        "Connection string 'DefaultConnection' was not found.");
 
-builder.Services.AddSingleton<
+builder.Services.AddDbContext<AppDbContext>(
+    options => options.UseNpgsql(
+        connectionString));
+
+builder.Services.AddScoped<
     IEventService,
     EventService>();
 
-builder.Services.AddSingleton<
-    IBookingStore,
-    InMemoryBookingStore>();
-
-builder.Services.AddSingleton<
+builder.Services.AddScoped<
     IBookingService,
     BookingService>();
 
@@ -72,6 +75,14 @@ builder.Services.AddHostedService<
     BookingBackgroundService>();
 
 var app = builder.Build();
+
+using (var scope = app.Services.CreateScope())
+{
+    var database = scope.ServiceProvider
+        .GetRequiredService<AppDbContext>();
+
+    database.Database.EnsureCreated();
+}
 
 app.UseMiddleware<ExceptionHandlingMiddleware>();
 

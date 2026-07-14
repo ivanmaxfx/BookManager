@@ -12,7 +12,8 @@ namespace MyWebApiProject.Controllers
     {
         private readonly IEventService _eventService;
 
-        public EventsController(IEventService eventService)
+        public EventsController(
+            IEventService eventService)
         {
             _eventService = eventService;
         }
@@ -24,20 +25,25 @@ namespace MyWebApiProject.Controllers
         [ProducesResponseType(
             typeof(ProblemDetails),
             StatusCodes.Status400BadRequest)]
-        public ActionResult<PaginatedResult<EventInfo>> GetAll(
-            [FromQuery] EventQueryParameters queryParameters)
+        public async Task<
+            ActionResult<PaginatedResult<EventInfo>>> GetAll(
+            [FromQuery] EventQueryParameters queryParameters,
+            CancellationToken cancellationToken)
         {
-            var result = _eventService.GetAll(queryParameters);
+            var result = await _eventService.GetAllAsync(
+                queryParameters,
+                cancellationToken);
 
-            var response = new PaginatedResult<EventInfo>
-            {
-                TotalCount = result.TotalCount,
-                Page = result.Page,
-                PageSize = result.PageSize,
-                Items = result.Items
-                    .Select(EventInfo.FromEvent)
-                    .ToList()
-            };
+            var response =
+                new PaginatedResult<EventInfo>
+                {
+                    TotalCount = result.TotalCount,
+                    Page = result.Page,
+                    PageSize = result.PageSize,
+                    Items = result.Items
+                        .Select(EventInfo.FromEvent)
+                        .ToList()
+                };
 
             return Ok(response);
         }
@@ -49,11 +55,17 @@ namespace MyWebApiProject.Controllers
         [ProducesResponseType(
             typeof(ProblemDetails),
             StatusCodes.Status404NotFound)]
-        public ActionResult<EventInfo> GetById(Guid id)
+        public async Task<ActionResult<EventInfo>> GetById(
+            Guid id,
+            CancellationToken cancellationToken)
         {
-            var eventItem = _eventService.GetById(id);
+            var eventItem =
+                await _eventService.GetByIdAsync(
+                    id,
+                    cancellationToken);
 
-            return Ok(EventInfo.FromEvent(eventItem));
+            return Ok(
+                EventInfo.FromEvent(eventItem));
         }
 
         [HttpPost]
@@ -63,8 +75,9 @@ namespace MyWebApiProject.Controllers
         [ProducesResponseType(
             typeof(ValidationProblemDetails),
             StatusCodes.Status400BadRequest)]
-        public ActionResult<EventInfo> Create(
-            [FromBody] EventRequest request)
+        public async Task<ActionResult<EventInfo>> Create(
+            [FromBody] EventRequest request,
+            CancellationToken cancellationToken)
         {
             var newEvent = Event.Create(
                 request.Title,
@@ -73,8 +86,13 @@ namespace MyWebApiProject.Controllers
                 request.EndAt!.Value,
                 request.TotalSeats!.Value);
 
-            var createdEvent = _eventService.Create(newEvent);
-            var response = EventInfo.FromEvent(createdEvent);
+            var createdEvent =
+                await _eventService.CreateAsync(
+                    newEvent,
+                    cancellationToken);
+
+            var response =
+                EventInfo.FromEvent(createdEvent);
 
             return CreatedAtAction(
                 nameof(GetById),
@@ -91,21 +109,22 @@ namespace MyWebApiProject.Controllers
         [ProducesResponseType(
             typeof(ProblemDetails),
             StatusCodes.Status404NotFound)]
-        public IActionResult Update(
+        public async Task<IActionResult> Update(
             Guid id,
-            [FromBody] EventRequest request)
+            [FromBody] EventRequest request,
+            CancellationToken cancellationToken)
         {
-            var updatedEvent = new Event
-            {
-                Id = id,
-                Title = request.Title.Trim(),
-                Description = request.Description,
-                StartAt = request.StartAt!.Value,
-                EndAt = request.EndAt!.Value,
-                TotalSeats = request.TotalSeats!.Value
-            };
+            var updatedEvent = Event.Create(
+                request.Title,
+                request.Description,
+                request.StartAt!.Value,
+                request.EndAt!.Value,
+                request.TotalSeats!.Value);
 
-            _eventService.Update(id, updatedEvent);
+            await _eventService.UpdateAsync(
+                id,
+                updatedEvent,
+                cancellationToken);
 
             return NoContent();
         }
@@ -116,9 +135,13 @@ namespace MyWebApiProject.Controllers
         [ProducesResponseType(
             typeof(ProblemDetails),
             StatusCodes.Status404NotFound)]
-        public IActionResult Delete(Guid id)
+        public async Task<IActionResult> Delete(
+            Guid id,
+            CancellationToken cancellationToken)
         {
-            _eventService.Delete(id);
+            await _eventService.DeleteAsync(
+                id,
+                cancellationToken);
 
             return NoContent();
         }

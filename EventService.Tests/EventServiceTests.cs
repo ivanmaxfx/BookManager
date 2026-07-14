@@ -1,4 +1,4 @@
-using FluentAssertions;
+using Microsoft.Extensions.DependencyInjection;
 using MyWebApiProject.Dtos;
 using MyWebApiProject.Exceptions;
 using MyWebApiProject.Models;
@@ -8,427 +8,453 @@ namespace EventService.Tests
 {
     public class EventServiceTests
     {
-        private static MyWebApiProject.Services.EventService CreateService() => new();
-
         [Fact]
-        public void Create_Should_Add_Event()
+        public async Task CreateAsync_AddsEvent()
         {
-            // Arrange
-            var service = CreateService();
+            using var provider =
+                TestServiceProviderFactory.Create();
 
-            var eventItem = new Event
-            {
-                Id = Guid.NewGuid(),
-                Title = "Meeting",
-                Description = "Sprint planning",
-                StartAt = new DateTime(2026, 5, 1, 10, 0, 0),
-                TotalSeats = 10,
-                EndAt = new DateTime(2026, 5, 1, 11, 0, 0)
-            };
+            using var scope = provider.CreateScope();
 
-            // Act
-            var result = service.Create(eventItem);
+            var service = scope.ServiceProvider
+                .GetRequiredService<IEventService>();
 
-            // Assert
-            Assert.NotNull(result);
-            Assert.Equal(eventItem.Id, result.Id);
-            Assert.Equal(eventItem.Title, result.Title);
-            Assert.Equal(eventItem.Description, result.Description);
-            Assert.Equal(eventItem.StartAt, result.StartAt);
-            Assert.Equal(eventItem.EndAt, result.EndAt);
+            var eventItem = CreateEvent(
+                title: "Meeting");
 
-            var savedEvent = service.GetById(eventItem.Id);
-            Assert.NotNull(savedEvent);
-            Assert.Equal(eventItem.Id, savedEvent.Id);
-            Assert.Equal(eventItem.Title, savedEvent.Title);
-            Assert.Equal(eventItem.Description, savedEvent.Description);
-            Assert.Equal(eventItem.StartAt, savedEvent.StartAt);
-            Assert.Equal(eventItem.EndAt, savedEvent.EndAt);
+            var created = await service.CreateAsync(
+                eventItem);
+
+            var stored = await service.GetByIdAsync(
+                created.Id);
+
+            Assert.Equal(created.Id, stored.Id);
+            Assert.Equal("Meeting", stored.Title);
+            Assert.Equal(10, stored.TotalSeats);
+            Assert.Equal(10, stored.AvailableSeats);
         }
 
         [Fact]
-        public void GetById_Should_Return_Event_When_Exists()
+        public async Task GetByIdAsync_ExistingEvent_ReturnsEvent()
         {
-            // Arrange
-            var service = CreateService();
+            using var provider =
+                TestServiceProviderFactory.Create();
 
-            var eventItem = new Event
+            Guid eventId;
+
+            using (var scope = provider.CreateScope())
             {
-                Id = Guid.NewGuid(),
-                Title = "Workshop",
-                StartAt = new DateTime(2026, 5, 2, 10, 0, 0),
-                TotalSeats = 10,
-                EndAt = new DateTime(2026, 5, 2, 12, 0, 0)
-            };
+                var service = scope.ServiceProvider
+                    .GetRequiredService<IEventService>();
 
-            service.Create(eventItem);
+                var created = await service.CreateAsync(
+                    CreateEvent());
 
-            // Act
-            var result = service.GetById(eventItem.Id);
-
-            // Assert
-            Assert.NotNull(result);
-            Assert.Equal(eventItem.Id, result.Id);
-            Assert.Equal(eventItem.Title, result.Title);
-            Assert.Equal(eventItem.Description, result.Description);
-            Assert.Equal(eventItem.StartAt, result.StartAt);
-            Assert.Equal(eventItem.EndAt, result.EndAt);
-        }
-        
-
-        [Fact]
-        public void GetById_Should_Throw_NotFoundException_When_Id_Does_Not_Exist()
-        {
-            // Arrange
-            var service = CreateService();
-            var id = Guid.NewGuid();
-
-            // Act
-            Action act = () => service.GetById(id);
-
-            // Assert
-            act.Should().Throw<NotFoundException>()
-                .WithMessage($"Event with id '{id}' was not found.");
-        }
-
-        [Fact]
-        public void Update_Should_Modify_Existing_Event()
-        {
-            // Arrange
-            var service = CreateService();
-            var id = Guid.NewGuid();
-
-            service.Create(new Event
-            {
-                Id = id,
-                Title = "Old title",
-                Description = "Old description",
-                StartAt = new DateTime(2026, 5, 3, 9, 0, 0),
-                TotalSeats = 10,
-                EndAt = new DateTime(2026, 5, 3, 10, 0, 0)
-            });
-
-            var updatedEvent = new Event
-            {
-                Id = id,
-                Title = "New title",
-                Description = "New description",
-                StartAt = new DateTime(2026, 5, 3, 11, 0, 0),
-                TotalSeats = 10,
-                EndAt = new DateTime(2026, 5, 3, 12, 0, 0)
-            };
-
-            // Act
-            service.Update(id, updatedEvent);
-            var result = service.GetById(id);
-
-            // Assert
-            result.Title.Should().Be("New title");
-            result.Description.Should().Be("New description");
-            result.StartAt.Should().Be(new DateTime(2026, 5, 3, 11, 0, 0));
-            result.EndAt.Should().Be(new DateTime(2026, 5, 3, 12, 0, 0));
-        }
-
-        [Fact]
-        public void Update_Should_Throw_NotFoundException_When_Id_Does_Not_Exist()
-        {
-            // Arrange
-            var service = CreateService();
-            var id = Guid.NewGuid();
-
-            var updatedEvent = new Event
-            {
-                Id = id,
-                Title = "Updated title",
-                StartAt = new DateTime(2026, 5, 3, 11, 0, 0),
-                TotalSeats = 10,
-                EndAt = new DateTime(2026, 5, 3, 12, 0, 0)
-            };
-
-            // Act
-            Action act = () => service.Update(id, updatedEvent);
-
-            // Assert
-            act.Should().Throw<NotFoundException>()
-                .WithMessage($"Event with id '{id}' was not found.");
-        }
-
-        [Fact]
-        public void Delete_Should_Remove_Existing_Event()
-        {
-            // Arrange
-            var service = CreateService();
-            var id = Guid.NewGuid();
-
-            service.Create(new Event
-            {
-                Id = id,
-                Title = "To delete",
-                StartAt = new DateTime(2026, 5, 4, 9, 0, 0),
-                TotalSeats = 10,
-                EndAt = new DateTime(2026, 5, 4, 10, 0, 0)
-            });
-
-            // Act
-            service.Delete(id);
-
-            // Assert
-            Action act = () => service.GetById(id);
-            act.Should().Throw<NotFoundException>();
-        }
-
-        [Fact]
-        public void GetAll_Should_Filter_By_Title()
-        {
-            // Arrange
-            var service = CreateService();
-
-            service.Create(new Event
-            {
-                Id = Guid.NewGuid(),
-                Title = "Team meeting",
-                StartAt = new DateTime(2026, 5, 1, 10, 0, 0),
-                TotalSeats = 10,
-                EndAt = new DateTime(2026, 5, 1, 11, 0, 0)
-            });
-
-            service.Create(new Event
-            {
-                Id = Guid.NewGuid(),
-                Title = "Workshop",
-                StartAt = new DateTime(2026, 5, 2, 10, 0, 0),
-                TotalSeats = 10,
-                EndAt = new DateTime(2026, 5, 2, 11, 0, 0)
-            });
-
-            // Act
-            var result = service.GetAll(new EventQueryParameters
-            {
-                Title = "meeting"
-            });
-
-            // Assert
-            result.TotalCount.Should().Be(1);
-            result.Items.Should().HaveCount(1);
-            result.Items.First().Title.Should().Be("Team meeting");
-        }
-
-        [Fact]
-        public void GetAll_Should_Filter_By_Date_Range()
-        {
-            // Arrange
-            var service = CreateService();
-
-            service.Create(new Event
-            {
-                Id = Guid.NewGuid(),
-                Title = "Early event",
-                StartAt = new DateTime(2026, 5, 1, 10, 0, 0),
-                TotalSeats = 10,
-                EndAt = new DateTime(2026, 5, 1, 11, 0, 0)
-            });
-
-            service.Create(new Event
-            {
-                Id = Guid.NewGuid(),
-                Title = "Late event",
-                StartAt = new DateTime(2026, 5, 10, 10, 0, 0),
-                TotalSeats = 10,
-                EndAt = new DateTime(2026, 5, 10, 11, 0, 0)
-            });
-
-            // Act
-            var result = service.GetAll(new EventQueryParameters
-            {
-                From = new DateTime(2026, 5, 5),
-                To = new DateTime(2026, 5, 15)
-            });
-
-            // Assert
-            result.TotalCount.Should().Be(1);
-            result.Items.Should().HaveCount(1);
-            result.Items.First().Title.Should().Be("Late event");
-        }
-
-        [Fact]
-        public void GetAll_Should_Return_Paginated_Result()
-        {
-            // Arrange
-            var service = CreateService();
-
-            for (int i = 1; i <= 15; i++)
-            {
-                service.Create(new Event
-                {
-                    Id = Guid.NewGuid(),
-                    Title = $"Event {i}",
-                    StartAt = new DateTime(2026, 5, i, 10, 0, 0),
-                    TotalSeats = 10,
-                    EndAt = new DateTime(2026, 5, i, 11, 0, 0)
-                });
+                eventId = created.Id;
             }
 
-            // Act
-            var result = service.GetAll(new EventQueryParameters
+            using (var scope = provider.CreateScope())
             {
-                Page = 2,
-                PageSize = 5
-            });
+                var service = scope.ServiceProvider
+                    .GetRequiredService<IEventService>();
 
-            // Assert
-            result.TotalCount.Should().Be(15);
-            result.Page.Should().Be(2);
-            result.PageSize.Should().Be(5);
-            result.Items.Should().HaveCount(5);
-            result.Items.First().Title.Should().Be("Event 6");
+                var result = await service.GetByIdAsync(
+                    eventId);
+
+                Assert.Equal(eventId, result.Id);
+            }
         }
 
         [Fact]
-        public void GetAll_Should_Apply_Combined_Filtering()
+        public async Task GetByIdAsync_MissingEvent_ThrowsNotFoundException()
         {
-            // Arrange
-            var service = CreateService();
+            using var provider =
+                TestServiceProviderFactory.Create();
 
-            service.Create(new Event
-            {
-                Id = Guid.NewGuid(),
-                Title = "Team meeting",
-                StartAt = new DateTime(2026, 6, 1, 10, 0, 0),
-                TotalSeats = 10,
-                EndAt = new DateTime(2026, 6, 1, 11, 0, 0)
-            });
+            using var scope = provider.CreateScope();
 
-            service.Create(new Event
-            {
-                Id = Guid.NewGuid(),
-                Title = "Team meeting old",
-                StartAt = new DateTime(2026, 4, 1, 10, 0, 0),
-                TotalSeats = 10,
-                EndAt = new DateTime(2026, 4, 1, 11, 0, 0)
-            });
+            var service = scope.ServiceProvider
+                .GetRequiredService<IEventService>();
 
-            // Act
-            var result = service.GetAll(new EventQueryParameters
-            {
-                Title = "team",
-                From = new DateTime(2026, 5, 1),
-                To = new DateTime(2026, 6, 30)
-            });
-
-            // Assert
-            result.TotalCount.Should().Be(1);
-            result.Items.Should().HaveCount(1);
-            result.Items.First().Title.Should().Be("Team meeting");
-        }
-
-        [Fact]
-        public void Create_Should_Throw_ValidationException_When_Title_Is_Invalid()
-        {
-            // Arrange
-            var service = CreateService();
-
-            var eventItem = new Event
-            {
-                Id = Guid.NewGuid(),
-                Title = "   ",
-                StartAt = new DateTime(2026, 5, 1, 10, 0, 0),
-                TotalSeats = 10,
-                EndAt = new DateTime(2026, 5, 1, 11, 0, 0)
-            };
-
-            // Act
-            Action act = () => service.Create(eventItem);
-
-            // Assert
-            act.Should().Throw<ValidationException>()
-                .WithMessage("Title is required.");
-        }
-
-        [Fact]
-        public void Update_Should_Throw_ValidationException_When_EndAt_Is_Earlier_Than_StartAt()
-        {
-            // Arrange
-            var service = CreateService();
             var id = Guid.NewGuid();
 
-            service.Create(new Event
-            {
-                Id = id,
-                Title = "Valid event",
-                StartAt = new DateTime(2026, 5, 1, 10, 0, 0),
-                TotalSeats = 10,
-                EndAt = new DateTime(2026, 5, 1, 11, 0, 0)
-            });
+            var exception =
+                await Assert.ThrowsAsync<
+                    NotFoundException>(
+                    () => service.GetByIdAsync(id));
 
-            var updatedEvent = new Event
-            {
-                Id = id,
-                Title = "Broken event",
-                StartAt = new DateTime(2026, 5, 1, 12, 0, 0),
-                TotalSeats = 10,
-                EndAt = new DateTime(2026, 5, 1, 11, 0, 0)
-            };
-
-            // Act
-            Action act = () => service.Update(id, updatedEvent);
-
-            // Assert
-            act.Should().Throw<ValidationException>()
-                .WithMessage("EndAt must be later than StartAt.");
+            Assert.Equal(
+                $"Event with id '{id}' was not found.",
+                exception.Message);
         }
 
         [Fact]
-        public void GetAll_Should_Throw_ValidationException_When_Page_Is_Invalid()
+        public async Task UpdateAsync_ModifiesEvent()
         {
-            // Arrange
-            var service = CreateService();
+            using var provider =
+                TestServiceProviderFactory.Create();
 
-            // Act
-            Action act = () => service.GetAll(new EventQueryParameters
+            Guid eventId;
+
+            using (var scope = provider.CreateScope())
             {
-                Page = 0,
-                PageSize = 10
-            });
+                var service = scope.ServiceProvider
+                    .GetRequiredService<IEventService>();
 
-            // Assert
-            act.Should().Throw<ValidationException>()
-                .WithMessage("Page must be greater than 0.");
+                var created = await service.CreateAsync(
+                    CreateEvent(
+                        title: "Old title",
+                        totalSeats: 5));
+
+                eventId = created.Id;
+            }
+
+            using (var scope = provider.CreateScope())
+            {
+                var service = scope.ServiceProvider
+                    .GetRequiredService<IEventService>();
+
+                var updated = CreateEvent(
+                    title: "New title",
+                    totalSeats: 8);
+
+                await service.UpdateAsync(
+                    eventId,
+                    updated);
+            }
+
+            using (var scope = provider.CreateScope())
+            {
+                var service = scope.ServiceProvider
+                    .GetRequiredService<IEventService>();
+
+                var result = await service.GetByIdAsync(
+                    eventId);
+
+                Assert.Equal("New title", result.Title);
+                Assert.Equal(8, result.TotalSeats);
+                Assert.Equal(8, result.AvailableSeats);
+            }
         }
 
         [Fact]
-        public void GetAll_Should_Throw_ValidationException_When_PageSize_Is_Invalid()
+        public async Task UpdateAsync_TotalSeatsBelowReserved_ThrowsValidationException()
         {
-            // Arrange
-            var service = CreateService();
+            using var provider =
+                TestServiceProviderFactory.Create();
 
-            // Act
-            Action act = () => service.GetAll(new EventQueryParameters
+            Guid eventId;
+
+            using (var scope = provider.CreateScope())
             {
-                Page = 1,
-                PageSize = 0
-            });
+                var eventService = scope.ServiceProvider
+                    .GetRequiredService<IEventService>();
 
-            // Assert
-            act.Should().Throw<ValidationException>()
-                .WithMessage("PageSize must be greater than 0.");
+                var bookingService = scope.ServiceProvider
+                    .GetRequiredService<IBookingService>();
+
+                var created = await eventService.CreateAsync(
+                    CreateEvent(totalSeats: 3));
+
+                eventId = created.Id;
+
+                await bookingService.CreateBookingAsync(
+                    eventId);
+
+                await bookingService.CreateBookingAsync(
+                    eventId);
+            }
+
+            using (var scope = provider.CreateScope())
+            {
+                var service = scope.ServiceProvider
+                    .GetRequiredService<IEventService>();
+
+                var updated = CreateEvent(
+                    totalSeats: 1);
+
+                var exception =
+                    await Assert.ThrowsAsync<
+                        ValidationException>(
+                        () => service.UpdateAsync(
+                            eventId,
+                            updated));
+
+                Assert.Equal(
+                    "TotalSeats cannot be less than reserved seats.",
+                    exception.Message);
+            }
         }
 
         [Fact]
-        public void GetAll_Should_Throw_ValidationException_When_From_Is_Later_Than_To()
+        public async Task DeleteAsync_RemovesEvent()
         {
-            // Arrange
-            var service = CreateService();
+            using var provider =
+                TestServiceProviderFactory.Create();
 
-            // Act
-            Action act = () => service.GetAll(new EventQueryParameters
+            Guid eventId;
+
+            using (var scope = provider.CreateScope())
             {
-                From = new DateTime(2026, 6, 1),
-                To = new DateTime(2026, 5, 1)
-            });
+                var service = scope.ServiceProvider
+                    .GetRequiredService<IEventService>();
 
-            // Assert
-            act.Should().Throw<ValidationException>()
-                .WithMessage("'From' must be earlier than or equal to 'To'.");
+                var created = await service.CreateAsync(
+                    CreateEvent());
+
+                eventId = created.Id;
+
+                await service.DeleteAsync(eventId);
+            }
+
+            using (var scope = provider.CreateScope())
+            {
+                var service = scope.ServiceProvider
+                    .GetRequiredService<IEventService>();
+
+                await Assert.ThrowsAsync<
+                    NotFoundException>(
+                    () => service.GetByIdAsync(eventId));
+            }
+        }
+
+        [Fact]
+        public async Task GetAllAsync_FiltersByTitle()
+        {
+            using var provider =
+                TestServiceProviderFactory.Create();
+
+            using var scope = provider.CreateScope();
+
+            var service = scope.ServiceProvider
+                .GetRequiredService<IEventService>();
+
+            await service.CreateAsync(
+                CreateEvent(title: "Team meeting"));
+
+            await service.CreateAsync(
+                CreateEvent(title: "Workshop"));
+
+            var result = await service.GetAllAsync(
+                new EventQueryParameters
+                {
+                    Title = "meeting"
+                });
+
+            Assert.Equal(1, result.TotalCount);
+            Assert.Single(result.Items);
+            Assert.Equal(
+                "Team meeting",
+                result.Items.Single().Title);
+        }
+
+        [Fact]
+        public async Task GetAllAsync_FiltersByDateRange()
+        {
+            using var provider =
+                TestServiceProviderFactory.Create();
+
+            using var scope = provider.CreateScope();
+
+            var service = scope.ServiceProvider
+                .GetRequiredService<IEventService>();
+
+            await service.CreateAsync(
+                CreateEvent(
+                    title: "Early event",
+                    startAt: new DateTime(
+                        2026, 5, 1, 10, 0, 0)));
+
+            await service.CreateAsync(
+                CreateEvent(
+                    title: "Late event",
+                    startAt: new DateTime(
+                        2026, 5, 10, 10, 0, 0)));
+
+            var result = await service.GetAllAsync(
+                new EventQueryParameters
+                {
+                    From = new DateTime(2026, 5, 5),
+                    To = new DateTime(
+                        2026, 5, 15, 23, 59, 59)
+                });
+
+            Assert.Equal(1, result.TotalCount);
+            Assert.Single(result.Items);
+            Assert.Equal(
+                "Late event",
+                result.Items.Single().Title);
+        }
+
+        [Fact]
+        public async Task GetAllAsync_ReturnsRequestedPage()
+        {
+            using var provider =
+                TestServiceProviderFactory.Create();
+
+            using var scope = provider.CreateScope();
+
+            var service = scope.ServiceProvider
+                .GetRequiredService<IEventService>();
+
+            for (var index = 1; index <= 15; index++)
+            {
+                await service.CreateAsync(
+                    CreateEvent(
+                        title: $"Event {index}",
+                        startAt: new DateTime(
+                            2026, 5, index, 10, 0, 0)));
+            }
+
+            var result = await service.GetAllAsync(
+                new EventQueryParameters
+                {
+                    Page = 2,
+                    PageSize = 5
+                });
+
+            Assert.Equal(15, result.TotalCount);
+            Assert.Equal(2, result.Page);
+            Assert.Equal(5, result.PageSize);
+            Assert.Equal(5, result.Items.Count);
+            Assert.Equal(
+                "Event 6",
+                result.Items.First().Title);
+        }
+
+        [Fact]
+        public async Task GetAllAsync_AppliesCombinedFilters()
+        {
+            using var provider =
+                TestServiceProviderFactory.Create();
+
+            using var scope = provider.CreateScope();
+
+            var service = scope.ServiceProvider
+                .GetRequiredService<IEventService>();
+
+            await service.CreateAsync(
+                CreateEvent(
+                    title: "Team meeting",
+                    startAt: new DateTime(
+                        2026, 6, 1, 10, 0, 0)));
+
+            await service.CreateAsync(
+                CreateEvent(
+                    title: "Team meeting old",
+                    startAt: new DateTime(
+                        2026, 4, 1, 10, 0, 0)));
+
+            await service.CreateAsync(
+                CreateEvent(
+                    title: "Workshop",
+                    startAt: new DateTime(
+                        2026, 6, 2, 10, 0, 0)));
+
+            var result = await service.GetAllAsync(
+                new EventQueryParameters
+                {
+                    Title = "team",
+                    From = new DateTime(2026, 5, 1),
+                    To = new DateTime(
+                        2026, 6, 30, 23, 59, 59)
+                });
+
+            Assert.Equal(1, result.TotalCount);
+            Assert.Single(result.Items);
+            Assert.Equal(
+                "Team meeting",
+                result.Items.Single().Title);
+        }
+
+        [Fact]
+        public async Task GetAllAsync_InvalidPage_ThrowsValidationException()
+        {
+            using var provider =
+                TestServiceProviderFactory.Create();
+
+            using var scope = provider.CreateScope();
+
+            var service = scope.ServiceProvider
+                .GetRequiredService<IEventService>();
+
+            var exception =
+                await Assert.ThrowsAsync<
+                    ValidationException>(
+                    () => service.GetAllAsync(
+                        new EventQueryParameters
+                        {
+                            Page = 0,
+                            PageSize = 10
+                        }));
+
+            Assert.Equal(
+                "Page must be greater than 0.",
+                exception.Message);
+        }
+
+        [Fact]
+        public async Task GetAllAsync_InvalidPageSize_ThrowsValidationException()
+        {
+            using var provider =
+                TestServiceProviderFactory.Create();
+
+            using var scope = provider.CreateScope();
+
+            var service = scope.ServiceProvider
+                .GetRequiredService<IEventService>();
+
+            var exception =
+                await Assert.ThrowsAsync<
+                    ValidationException>(
+                    () => service.GetAllAsync(
+                        new EventQueryParameters
+                        {
+                            Page = 1,
+                            PageSize = 0
+                        }));
+
+            Assert.Equal(
+                "PageSize must be greater than 0.",
+                exception.Message);
+        }
+
+        [Fact]
+        public async Task GetAllAsync_FromAfterTo_ThrowsValidationException()
+        {
+            using var provider =
+                TestServiceProviderFactory.Create();
+
+            using var scope = provider.CreateScope();
+
+            var service = scope.ServiceProvider
+                .GetRequiredService<IEventService>();
+
+            await Assert.ThrowsAsync<
+                ValidationException>(
+                () => service.GetAllAsync(
+                    new EventQueryParameters
+                    {
+                        From = new DateTime(2026, 6, 1),
+                        To = new DateTime(2026, 5, 1)
+                    }));
+        }
+
+        private static Event CreateEvent(
+            string title = "Test event",
+            int totalSeats = 10,
+            DateTime? startAt = null)
+        {
+            var start = startAt ??
+                new DateTime(
+                    2026, 8, 10, 10, 0, 0);
+
+            return Event.Create(
+                title,
+                "Test description",
+                start,
+                start.AddHours(2),
+                totalSeats);
         }
     }
 }

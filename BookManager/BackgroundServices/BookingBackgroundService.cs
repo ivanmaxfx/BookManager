@@ -1,3 +1,4 @@
+using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Options;
 using MyWebApiProject.DataAccess;
 using MyWebApiProject.Models;
@@ -5,25 +6,20 @@ using MyWebApiProject.Options;
 
 namespace MyWebApiProject.BackgroundServices
 {
-    public sealed class BookingBackgroundService : BackgroundService
+    public sealed class BookingBackgroundService :
+        BackgroundService
     {
-        private readonly IBookingStore _bookingStore;
-        private readonly IEventStore _eventStore;
+        private readonly IServiceScopeFactory _scopeFactory;
         private readonly ILogger<BookingBackgroundService> _logger;
         private readonly TimeSpan _pollingInterval;
         private readonly TimeSpan _processingDelay;
 
-        private readonly SemaphoreSlim _processingSemaphore =
-            new(1, 1);
-
         public BookingBackgroundService(
-            IBookingStore bookingStore,
-            IEventStore eventStore,
+            IServiceScopeFactory scopeFactory,
             IOptions<BookingProcessingOptions> options,
             ILogger<BookingBackgroundService> logger)
         {
-            _bookingStore = bookingStore;
-            _eventStore = eventStore;
+            _scopeFactory = scopeFactory;
             _logger = logger;
 
             _pollingInterval = TimeSpan.FromMilliseconds(
@@ -43,16 +39,19 @@ namespace MyWebApiProject.BackgroundServices
             {
                 try
                 {
-                    var pendingBookings = _bookingStore
-                        .GetPending()
-                        .ToList();
+                    var pendingBookingIds =
+                        await GetPendingBookingIdsAsync(
+                            stoppingToken);
 
-                    var tasks = pendingBookings.Select(
-                        booking => ProcessBookingAsync(
-                            booking,
-                            stoppingToken));
+                    var processingTasks =
+                        pendingBookingIds.Select(
+                            bookingId =>
+                                ProcessBookingAsync(
+                                    bookingId,
+                                    stoppingToken));
 
-                    await Task.WhenAll(tasks);
+                    await Task.WhenAll(
+                        processingTasks);
                 }
                 catch (OperationCanceledException)
                     when (stoppingToken.IsCancellationRequested)
@@ -83,34 +82,66 @@ namespace MyWebApiProject.BackgroundServices
                 "Booking background service stopped");
         }
 
+        private async Task<List<Guid>>
+            GetPendingBookingIdsAsync(
+                CancellationToken cancellationToken)
+        {
+            await using var scope =
+                _scopeFactory.CreateAsyncScope();
+
+            var context = scope.ServiceProvider
+                .GetRequiredService<AppDbContext>();
+
+            return await context.Bookings
+                .AsNoTracking()
+                .Where(booking =>
+                    booking.Status ==
+                    BookingStatus.Pending)
+                .Select(booking => booking.Id)
+                .ToListAsync(cancellationToken);
+        }
+
         private async Task ProcessBookingAsync(
-            Booking booking,
+            Guid bookingId,
             CancellationToken stoppingToken)
         {
-            _logger.LogInformation(
-                "Started processing booking {BookingId}",
-                booking.Id);
-
-            await Task.Delay(
-                _processingDelay,
-                stoppingToken);
-
-            await _processingSemaphore.WaitAsync(
-                stoppingToken);
-
-            Event? eventItem = null;
-
             try
             {
-                stoppingToken.ThrowIfCancellationRequested();
+                // Задержки всех задач выполняются параллельно.
+                await Task.Delay(
+                    _processingDelay,
+                    stoppingToken);
 
-                eventItem = _eventStore.GetById(
-                    booking.EventId);
+                await using var scope =
+                    _scopeFactory.CreateAsyncScope();
 
-                if (eventItem is null)
+                var context = scope.ServiceProvider
+                    .GetRequiredService<AppDbContext>();
+
+                var booking = await context.Bookings
+                    .FirstOrDefaultAsync(
+                        item => item.Id == bookingId,
+                        stoppingToken);
+
+                if (booking is null ||
+                    booking.Status != BookingStatus.Pending)
+                {
+                    return;
+                }
+
+                var eventExists =
+                    await context.Events.AnyAsync(
+                        eventItem =>
+                            eventItem.Id ==
+                            booking.EventId,
+                        stoppingToken);
+
+                if (!eventExists)
                 {
                     booking.Reject();
-                    _bookingStore.Update(booking);
+
+                    await context.SaveChangesAsync(
+                        stoppingToken);
 
                     _logger.LogWarning(
                         "Booking {BookingId} rejected because event {EventId} was not found",
@@ -121,7 +152,9 @@ namespace MyWebApiProject.BackgroundServices
                 }
 
                 booking.Confirm();
-                _bookingStore.Update(booking);
+
+                await context.SaveChangesAsync(
+                    stoppingToken);
 
                 _logger.LogInformation(
                     "Booking {BookingId} confirmed",
@@ -137,56 +170,61 @@ namespace MyWebApiProject.BackgroundServices
                 _logger.LogError(
                     exception,
                     "Failed to process booking {BookingId}",
-                    booking.Id);
+                    bookingId);
 
-                RejectBookingAndReleaseSeat(
-                    booking,
-                    eventItem);
-            }
-            finally
-            {
-                _processingSemaphore.Release();
+                await RejectAndReleaseSeatAsync(
+                    bookingId,
+                    stoppingToken);
             }
         }
 
-        private void RejectBookingAndReleaseSeat(
-            Booking booking,
-            Event? eventItem)
+        private async Task RejectAndReleaseSeatAsync(
+            Guid bookingId,
+            CancellationToken cancellationToken)
         {
-            if (booking.Status != BookingStatus.Pending)
-            {
-                return;
-            }
-
             try
             {
-                booking.Reject();
+                await using var scope =
+                    _scopeFactory.CreateAsyncScope();
 
-                if (eventItem is not null)
+                var context = scope.ServiceProvider
+                    .GetRequiredService<AppDbContext>();
+
+                var booking = await context.Bookings
+                    .FirstOrDefaultAsync(
+                        item => item.Id == bookingId,
+                        cancellationToken);
+
+                if (booking is null ||
+                    booking.Status != BookingStatus.Pending)
                 {
-                    eventItem.ReleaseSeats();
-                    _eventStore.Update(eventItem);
+                    return;
                 }
 
-                _bookingStore.Update(booking);
+                var eventItem = await context.Events
+                    .FirstOrDefaultAsync(
+                        item =>
+                            item.Id == booking.EventId,
+                        cancellationToken);
+
+                booking.Reject();
+
+                eventItem?.ReleaseSeats();
+
+                await context.SaveChangesAsync(
+                    cancellationToken);
 
                 _logger.LogWarning(
                     "Booking {BookingId} rejected after processing error",
-                    booking.Id);
+                    bookingId);
             }
             catch (Exception recoveryException)
             {
                 _logger.LogError(
                     recoveryException,
-                    "Failed to reject booking {BookingId} after processing error",
-                    booking.Id);
+                    "Failed to recover booking {BookingId}",
+                    bookingId);
             }
-        }
-
-        public override void Dispose()
-        {
-            _processingSemaphore.Dispose();
-            base.Dispose();
         }
     }
 }
