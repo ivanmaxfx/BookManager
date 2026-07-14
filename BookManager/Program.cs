@@ -81,7 +81,7 @@ using (var scope = app.Services.CreateScope())
     var database = scope.ServiceProvider
         .GetRequiredService<AppDbContext>();
 
-    database.Database.EnsureCreated();
+    database.Database.Migrate();
 }
 
 app.UseMiddleware<ExceptionHandlingMiddleware>();
