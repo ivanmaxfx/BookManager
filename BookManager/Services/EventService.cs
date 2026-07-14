@@ -1,59 +1,79 @@
-using System.Collections.Concurrent;
+using MyWebApiProject.DataAccess;
 using MyWebApiProject.Dtos;
 using MyWebApiProject.Exceptions;
 using MyWebApiProject.Models;
 
 namespace MyWebApiProject.Services
 {
-    /// <summary>
-    /// Потокобезопасный сервис для хранения мероприятий в памяти приложения.
-    /// </summary>
     public class EventService : IEventService
     {
-        private readonly ConcurrentDictionary<Guid, Event> _events = new();
+        private readonly IEventStore _eventStore;
 
-        public PaginatedResult<Event> GetAll(EventQueryParameters queryParameters)
+        public EventService()
+            : this(new InMemoryEventStore())
+        {
+        }
+
+        public EventService(IEventStore eventStore)
+        {
+            _eventStore = eventStore;
+        }
+
+        public PaginatedResult<Event> GetAll(
+            EventQueryParameters queryParameters)
         {
             if (queryParameters.Page <= 0)
             {
-                throw new ValidationException("Page must be greater than 0.");
+                throw new ValidationException(
+                    "Page must be greater than 0.");
             }
 
             if (queryParameters.PageSize <= 0)
             {
-                throw new ValidationException("PageSize must be greater than 0.");
+                throw new ValidationException(
+                    "PageSize must be greater than 0.");
             }
 
-            if (queryParameters.From.HasValue && queryParameters.To.HasValue &&
+            if (queryParameters.From.HasValue &&
+                queryParameters.To.HasValue &&
                 queryParameters.From > queryParameters.To)
             {
-                throw new ValidationException("'From' must be earlier than or equal to 'To'.");
+                throw new ValidationException(
+                    "'From' must be earlier than or equal to 'To'.");
             }
 
-            var query = _events.Values.AsQueryable();
+            var query = _eventStore
+                .GetAll()
+                .AsQueryable();
 
             if (!string.IsNullOrWhiteSpace(queryParameters.Title))
             {
-                query = query.Where(e =>
-                    e.Title.Contains(queryParameters.Title, StringComparison.OrdinalIgnoreCase));
+                query = query.Where(eventItem =>
+                    eventItem.Title.Contains(
+                        queryParameters.Title,
+                        StringComparison.OrdinalIgnoreCase));
             }
 
             if (queryParameters.From.HasValue)
             {
-                query = query.Where(e => e.StartAt >= queryParameters.From.Value);
+                query = query.Where(eventItem =>
+                    eventItem.StartAt >= queryParameters.From.Value);
             }
 
             if (queryParameters.To.HasValue)
             {
-                query = query.Where(e => e.EndAt <= queryParameters.To.Value);
+                query = query.Where(eventItem =>
+                    eventItem.EndAt <= queryParameters.To.Value);
             }
 
-            query = query.OrderBy(e => e.StartAt);
+            query = query.OrderBy(eventItem => eventItem.StartAt);
 
             var totalCount = query.Count();
 
             var items = query
-                .Skip((queryParameters.Page - 1) * queryParameters.PageSize)
+                .Skip(
+                    (queryParameters.Page - 1) *
+                    queryParameters.PageSize)
                 .Take(queryParameters.PageSize)
                 .ToList();
 
@@ -68,21 +88,25 @@ namespace MyWebApiProject.Services
 
         public Event GetById(Guid id)
         {
-            if (!_events.TryGetValue(id, out var eventItem))
-            {
-                throw new NotFoundException($"Event with id '{id}' was not found.");
-            }
-
-            return eventItem;
+            return _eventStore.GetById(id)
+                ?? throw new NotFoundException(
+                    $"Event with id '{id}' was not found.");
         }
 
         public Event Create(Event newEvent)
         {
             ValidateEvent(newEvent);
 
-            if (!_events.TryAdd(newEvent.Id, newEvent))
+            newEvent.AvailableSeats = newEvent.TotalSeats;
+
+            try
             {
-                throw new ValidationException($"Event with id '{newEvent.Id}' already exists.");
+                _eventStore.Add(newEvent);
+            }
+            catch (InvalidOperationException)
+            {
+                throw new ValidationException(
+                    $"Event with id '{newEvent.Id}' already exists.");
             }
 
             return newEvent;
@@ -90,29 +114,33 @@ namespace MyWebApiProject.Services
 
         public void Update(Guid id, Event updatedEvent)
         {
+            var existingEvent = GetById(id);
+
             ValidateEvent(updatedEvent);
 
-            while (true)
+            var reservedSeats =
+                existingEvent.TotalSeats -
+                existingEvent.AvailableSeats;
+
+            if (updatedEvent.TotalSeats < reservedSeats)
             {
-                if (!_events.TryGetValue(id, out var existingEvent))
-                {
-                    throw new NotFoundException($"Event with id '{id}' was not found.");
-                }
-
-                updatedEvent.Id = id;
-
-                if (_events.TryUpdate(id, updatedEvent, existingEvent))
-                {
-                    return;
-                }
+                throw new ValidationException(
+                    "TotalSeats cannot be less than reserved seats.");
             }
+
+            updatedEvent.Id = id;
+            updatedEvent.AvailableSeats =
+                updatedEvent.TotalSeats - reservedSeats;
+
+            _eventStore.Update(updatedEvent);
         }
 
         public void Delete(Guid id)
         {
-            if (!_events.TryRemove(id, out _))
+            if (!_eventStore.Delete(id))
             {
-                throw new NotFoundException($"Event with id '{id}' was not found.");
+                throw new NotFoundException(
+                    $"Event with id '{id}' was not found.");
             }
         }
 
@@ -120,12 +148,20 @@ namespace MyWebApiProject.Services
         {
             if (string.IsNullOrWhiteSpace(eventItem.Title))
             {
-                throw new ValidationException("Title is required.");
+                throw new ValidationException(
+                    "Title is required.");
             }
 
             if (eventItem.EndAt <= eventItem.StartAt)
             {
-                throw new ValidationException("EndAt must be later than StartAt.");
+                throw new ValidationException(
+                    "EndAt must be later than StartAt.");
+            }
+
+            if (eventItem.TotalSeats <= 0)
+            {
+                throw new ValidationException(
+                    "TotalSeats must be greater than 0.");
             }
         }
     }

@@ -113,15 +113,15 @@
 /home/ivanm/Рабочий стол/CSharp/csharp-learning/Projects/EventService.Tests/obj/Debug/net9.0/ref/EventService.Tests.dll
 /home/course/projects/BookManager/EventService.Tests/bin/Debug/net9.0/.msCoverageSourceRootsMapping_EventService.Tests
 /home/course/projects/BookManager/EventService.Tests/bin/Debug/net9.0/CoverletSourceRootsMapping_EventService.Tests
-/home/course/projects/BookManager/EventService.Tests/bin/Debug/net9.0/appsettings.Development.json
-/home/course/projects/BookManager/EventService.Tests/bin/Debug/net9.0/xunit.runner.visualstudio.testadapter.dll
-/home/course/projects/BookManager/EventService.Tests/bin/Debug/net9.0/xunit.runner.reporters.netcoreapp10.dll
-/home/course/projects/BookManager/EventService.Tests/bin/Debug/net9.0/xunit.runner.utility.netcoreapp10.dll
 /home/course/projects/BookManager/EventService.Tests/bin/Debug/net9.0/BookManager.deps.json
 /home/course/projects/BookManager/EventService.Tests/bin/Debug/net9.0/BookManager.runtimeconfig.json
+/home/course/projects/BookManager/EventService.Tests/bin/Debug/net9.0/appsettings.Development.json
 /home/course/projects/BookManager/EventService.Tests/bin/Debug/net9.0/appsettings.json
 /home/course/projects/BookManager/EventService.Tests/bin/Debug/net9.0/BookManager.staticwebassets.endpoints.json
 /home/course/projects/BookManager/EventService.Tests/bin/Debug/net9.0/BookManager
+/home/course/projects/BookManager/EventService.Tests/bin/Debug/net9.0/xunit.runner.visualstudio.testadapter.dll
+/home/course/projects/BookManager/EventService.Tests/bin/Debug/net9.0/xunit.runner.reporters.netcoreapp10.dll
+/home/course/projects/BookManager/EventService.Tests/bin/Debug/net9.0/xunit.runner.utility.netcoreapp10.dll
 /home/course/projects/BookManager/EventService.Tests/bin/Debug/net9.0/EventService.Tests.deps.json
 /home/course/projects/BookManager/EventService.Tests/bin/Debug/net9.0/EventService.Tests.runtimeconfig.json
 /home/course/projects/BookManager/EventService.Tests/bin/Debug/net9.0/EventService.Tests.dll

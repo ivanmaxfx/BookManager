@@ -49,7 +49,13 @@ builder.Services.AddSwaggerGen(options =>
     }
 });
 
-builder.Services.AddSingleton<IEventService, EventService>();
+builder.Services.AddSingleton<
+    IEventStore,
+    InMemoryEventStore>();
+
+builder.Services.AddSingleton<
+    IEventService,
+    EventService>();
 
 builder.Services.AddSingleton<
     IBookingStore,
@@ -58,10 +64,6 @@ builder.Services.AddSingleton<
 builder.Services.AddSingleton<
     IBookingService,
     BookingService>();
-
-builder.Services.AddSingleton<
-    IBookingProcessor,
-    BookingProcessor>();
 
 builder.Services.Configure<BookingProcessingOptions>(
     builder.Configuration.GetSection("BookingProcessing"));
