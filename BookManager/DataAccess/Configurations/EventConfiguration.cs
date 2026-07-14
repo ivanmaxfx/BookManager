@@ -10,7 +10,18 @@ namespace MyWebApiProject.DataAccess.Configurations
         public void Configure(
             EntityTypeBuilder<Event> builder)
         {
-            builder.ToTable("events");
+            builder.ToTable(
+                "events",
+                table =>
+                {
+                    table.HasCheckConstraint(
+                        "ck_events_total_seats_positive",
+                        "total_seats > 0");
+
+                    table.HasCheckConstraint(
+                        "ck_events_available_seats_range",
+                        "available_seats >= 0 AND available_seats <= total_seats");
+                });
 
             builder.HasKey(eventItem => eventItem.Id);
 
@@ -44,14 +55,6 @@ namespace MyWebApiProject.DataAccess.Configurations
             builder.Property(eventItem => eventItem.AvailableSeats)
                 .HasColumnName("available_seats")
                 .IsRequired();
-
-            builder.HasCheckConstraint(
-                "ck_events_total_seats_positive",
-                "total_seats > 0");
-
-            builder.HasCheckConstraint(
-                "ck_events_available_seats_range",
-                "available_seats >= 0 AND available_seats <= total_seats");
         }
     }
 }

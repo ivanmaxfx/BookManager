@@ -14,16 +14,6 @@
             Получить текущее состояние бронирования.
             </summary>
         </member>
-        <member name="T:MyWebApiProject.DataAccess.IBookingStore">
-            <summary>
-            Хранилище бронирований.
-            </summary>
-        </member>
-        <member name="T:MyWebApiProject.DataAccess.InMemoryBookingStore">
-            <summary>
-            Потокобезопасное хранилище бронирований в памяти.
-            </summary>
-        </member>
         <member name="T:MyWebApiProject.Dtos.BookingInfo">
             <summary>
             Информация о бронировании, возвращаемая клиенту.
@@ -167,11 +157,6 @@
         <member name="T:MyWebApiProject.Services.IBookingService">
             <summary>
             Сервис для работы с бронированиями.
-            </summary>
-        </member>
-        <member name="T:MyWebApiProject.Services.IEventService">
-            <summary>
-            Сервис для работы с мероприятиями.
             </summary>
         </member>
     </members>
