@@ -1,8 +1,11 @@
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using MyWebApiProject.DataAccess;
+using MyWebApiProject.DataAccess.Repositories;
+using MyWebApiProject.DataAccess.UnitOfWork;
 using MyWebApiProject.Services;
-using EventServiceImpl = MyWebApiProject.Services.EventService;
+using EventServiceImpl =
+    MyWebApiProject.Services.EventService;
 
 namespace EventService.Tests
 {
@@ -18,6 +21,18 @@ namespace EventService.Tests
             services.AddDbContext<AppDbContext>(
                 options => options.UseInMemoryDatabase(
                     databaseName));
+
+            services.AddScoped<
+                IEventRepository,
+                EventRepository>();
+
+            services.AddScoped<
+                IBookingRepository,
+                BookingRepository>();
+
+            services.AddScoped<
+                IUnitOfWork,
+                UnitOfWork>();
 
             services.AddScoped<
                 IEventService,

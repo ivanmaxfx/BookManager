@@ -159,5 +159,17 @@
             Сервис для работы с бронированиями.
             </summary>
         </member>
+        <member name="T:BookManager.DataAccess.Migrations.InitialCreate">
+            <inheritdoc />
+        </member>
+        <member name="M:BookManager.DataAccess.Migrations.InitialCreate.Up(Microsoft.EntityFrameworkCore.Migrations.MigrationBuilder)">
+            <inheritdoc />
+        </member>
+        <member name="M:BookManager.DataAccess.Migrations.InitialCreate.Down(Microsoft.EntityFrameworkCore.Migrations.MigrationBuilder)">
+            <inheritdoc />
+        </member>
+        <member name="M:BookManager.DataAccess.Migrations.InitialCreate.BuildTargetModel(Microsoft.EntityFrameworkCore.ModelBuilder)">
+            <inheritdoc />
+        </member>
     </members>
 </doc>

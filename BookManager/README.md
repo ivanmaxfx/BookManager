@@ -6,55 +6,222 @@ ASP.NET Core Web API для управления событиями и брон�
 
 - .NET 9
 - ASP.NET Core Web API
-- Entity Framework Core
+- Entity Framework Core 9
 - PostgreSQL
 - Npgsql
+- EF Core migrations
 - Swagger
 - xUnit
+- Testcontainers for .NET
 - EF Core InMemory для юнит-тестов
 
-## Хранение данных
+## Архитектура
 
-События и бронирования хранятся в PostgreSQL.
+Приложение разделено на несколько основных уровней:
 
-Для доступа к базе данных используется `AppDbContext` с двумя наборами:
+- контроллеры принимают HTTP-запросы;
+- сервисы содержат бизнес-логику;
+- репозитории выполняют операции с данными;
+- `UnitOfWork` сохраняет изменения через единый `AppDbContext`;
+- фоновый сервис обрабатывает ожидающие бронирования;
+- PostgreSQL используется как постоянное хранилище.
 
-- `DbSet<Event> Events`;
-- `DbSet<Booking> Bookings`.
+Сервисы не обращаются к `AppDbContext` напрямую.
 
-Маппинг сущностей выполняется через Fluent API:
+## Сущности
 
-- `EventConfiguration`;
-- `BookingConfiguration`.
+### Event
 
-В PostgreSQL создаются таблицы:
+Событие содержит:
 
-- `events`;
-- `bookings`.
+- идентификатор;
+- название;
+- описание;
+- дату начала;
+- дату окончания;
+- общее количество мест;
+- количество свободных мест;
+- коллекцию бронирований.
 
-Таблица `bookings` связана с `events` внешним ключом `event_id`.
+### Booking
 
-## Создание схемы базы данных
+Бронирование содержит:
 
-В пятом спринте схема базы данных создаётся автоматически при запуске приложения:
+- идентификатор;
+- идентификатор события;
+- статус;
+- время создания;
+- время обработки;
+- ссылку на событие.
+
+Статус бронирования хранится в PostgreSQL как строка.
+
+## База данных
+
+Контекст базы данных:
 
 ```csharp
-using (var scope = app.Services.CreateScope())
-{
-    var database = scope.ServiceProvider
-        .GetRequiredService<AppDbContext>();
+public DbSet<Event> Events => Set<Event>();
 
-    database.Database.EnsureCreated();
-}
+public DbSet<Booking> Bookings => Set<Booking>();
 ```
 
-Миграции EF Core на этом этапе ещё не используются.
+Таблицы:
+
+```text
+events
+bookings
+```
+
+Между ними настроена связь:
+
+```text
+bookings.event_id → events.id
+```
+
+## Миграции
+
+Схема базы данных управляется через EF Core migrations.
+
+При запуске приложения выполняется:
+
+```csharp
+database.Database.Migrate();
+```
+
+Приложение автоматически применяет все ещё не применённые миграции.
+
+Создана начальная миграция:
+
+```text
+InitialCreate
+```
+
+Она создаёт:
+
+- таблицу `events`;
+- таблицу `bookings`;
+- первичные ключи;
+- внешний ключ бронирования на событие;
+- индексы;
+- ограничения количества мест;
+- таблицу `__EFMigrationsHistory`.
+
+## Работа с миграциями
+
+Восстановить локальные инструменты:
+
+```bash
+dotnet tool restore
+```
+
+Посмотреть список миграций:
+
+```bash
+dotnet tool run dotnet-ef migrations list \
+  --project BookManager/BookManager.csproj \
+  --startup-project BookManager/BookManager.csproj
+```
+
+Добавить новую миграцию:
+
+```bash
+dotnet tool run dotnet-ef migrations add MigrationName \
+  --project BookManager/BookManager.csproj \
+  --startup-project BookManager/BookManager.csproj \
+  --output-dir DataAccess/Migrations
+```
+
+Проверить изменения модели, для которых миграция ещё не создана:
+
+```bash
+dotnet tool run dotnet-ef migrations has-pending-model-changes \
+  --project BookManager/BookManager.csproj \
+  --startup-project BookManager/BookManager.csproj
+```
+
+## Репозитории
+
+### EventRepository
+
+Поддерживает:
+
+- добавление события;
+- получение события по идентификатору;
+- проверку существования;
+- получение количества событий;
+- фильтрацию;
+- пагинацию;
+- обновление;
+- удаление.
+
+### BookingRepository
+
+Поддерживает:
+
+- добавление бронирования;
+- получение по идентификатору;
+- получение ожидающих бронирований;
+- получение идентификаторов ожидающих бронирований;
+- обновление;
+- удаление.
+
+## Unit of Work
+
+`IUnitOfWork` выполняет единое сохранение изменений:
+
+```csharp
+Task<int> SaveChangesAsync(
+    CancellationToken cancellationToken = default);
+```
+
+Это позволяет сохранить уменьшение количества свободных мест и создание бронирования одной операцией.
+
+## Конкурентное бронирование
+
+Создание бронирований защищено статическим `SemaphoreSlim`.
+
+Алгоритм:
+
+1. получить событие с отслеживанием изменений;
+2. проверить наличие свободных мест;
+3. уменьшить количество свободных мест;
+4. создать бронирование со статусом `Pending`;
+5. сохранить событие и бронирование одним `SaveChangesAsync()`.
+
+Если свободных мест нет, API возвращает:
+
+```text
+409 Conflict
+```
+
+## Фоновая обработка
+
+`BookingBackgroundService` получает scoped-зависимости через:
+
+```csharp
+IServiceScopeFactory
+```
+
+Для каждой параллельно обрабатываемой брони создаётся отдельный scope.
+
+Обработка запускается через:
+
+```csharp
+await Task.WhenAll(processingTasks);
+```
+
+Успешное бронирование получает статус:
+
+```text
+Confirmed
+```
+
+При ошибке обработки бронирование отклоняется, а место возвращается событию.
 
 ## Запуск PostgreSQL
 
-Для запуска PostgreSQL необходим Docker.
-
-Запустить контейнер:
+Запустить контейнеры:
 
 ```bash
 docker compose up -d
@@ -66,55 +233,26 @@ docker compose up -d
 docker compose ps
 ```
 
-Проверить готовность PostgreSQL:
-
-```bash
-docker compose exec postgres \
-  pg_isready \
-  -U postgres \
-  -d eventapi
-```
-
-Остановить контейнер:
+Остановить контейнеры:
 
 ```bash
 docker compose down
 ```
 
-Остановить контейнер и удалить данные:
+Удалить контейнеры вместе с локальными данными:
 
 ```bash
 docker compose down -v
 ```
 
-## Строка подключения
-
-Стандартная строка подключения находится в файле `BookManager/appsettings.json`:
-
-```json
-{
-  "ConnectionStrings": {
-    "DefaultConnection": "Host=localhost;Port=5432;Database=eventapi;Username=postgres;Password=postgres"
-  }
-}
-```
-
-Для другого экземпляра PostgreSQL необходимо изменить:
-
-- `Host`;
-- `Port`;
-- `Database`;
-- `Username`;
-- `Password`.
-
-## Сборка проекта
+## Сборка
 
 Из корня репозитория:
 
 ```bash
-dotnet restore BookManager/BookManager.csproj
+dotnet restore BookManager/BookManager.sln
 
-dotnet build BookManager/BookManager.csproj
+dotnet build BookManager/BookManager.sln
 ```
 
 ## Запуск приложения
@@ -132,15 +270,13 @@ dotnet run \
   --urls http://0.0.0.0:5236
 ```
 
-Swagger после запуска:
+Swagger:
 
 ```text
 http://localhost:5236/swagger
 ```
 
-При запуске приложение автоматически создаёт таблицы через `EnsureCreated()`, если они ещё не существуют.
-
-## Основные эндпоинты
+## Эндпоинты
 
 ### События
 
@@ -159,174 +295,68 @@ POST   /events/{id}/book
 GET    /bookings/{id}
 ```
 
-## Работа с событиями
-
-Методы `EventService` выполняются асинхронно и используют `AppDbContext` напрямую.
-
-После добавления, изменения или удаления события вызывается:
-
-```csharp
-await context.SaveChangesAsync(cancellationToken);
-```
-
-Получение списка событий поддерживает:
-
-- фильтрацию по названию;
-- фильтрацию по начальной дате;
-- фильтрацию по конечной дате;
-- совместное применение фильтров;
-- пагинацию.
-
-## Работа с бронированиями
-
-Создание бронирования и уменьшение количества доступных мест сохраняются одним вызовом:
-
-```csharp
-await context.SaveChangesAsync(cancellationToken);
-```
-
-Обе операции выполняются через один экземпляр `AppDbContext`.
-
-Для защиты от конкурентного овербукинга используется статический `SemaphoreSlim`.
-
-Если свободных мест нет, API возвращает:
-
-```text
-409 Conflict
-```
-
-## Фоновая обработка бронирований
-
-`BookingBackgroundService` является singleton-сервисом, а `AppDbContext` имеет время жизни `Scoped`.
-
-Поэтому фоновый сервис получает зависимости через:
-
-```csharp
-IServiceScopeFactory
-```
-
-Для чтения списка ожидающих бронирований создаётся отдельный scope.
-
-Для обработки каждой брони также создаётся отдельный scope и отдельный экземпляр `AppDbContext`.
-
-Параллельная обработка запускается через:
-
-```csharp
-await Task.WhenAll(processingTasks);
-```
-
-## Проверка PostgreSQL
-
-Посмотреть созданные таблицы:
-
-```bash
-docker compose exec postgres \
-  psql \
-  -U postgres \
-  -d eventapi \
-  -c '\dt'
-```
-
-Посмотреть структуру таблицы событий:
-
-```bash
-docker compose exec postgres \
-  psql \
-  -U postgres \
-  -d eventapi \
-  -c '\d events'
-```
-
-Посмотреть структуру таблицы бронирований:
-
-```bash
-docker compose exec postgres \
-  psql \
-  -U postgres \
-  -d eventapi \
-  -c '\d bookings'
-```
-
-Посмотреть события:
-
-```bash
-docker compose exec postgres \
-  psql \
-  -U postgres \
-  -d eventapi \
-  -c 'SELECT id, title, total_seats, available_seats FROM events;'
-```
-
-Посмотреть бронирования:
-
-```bash
-docker compose exec postgres \
-  psql \
-  -U postgres \
-  -d eventapi \
-  -c 'SELECT id, event_id, status, created_at, processed_at FROM bookings;'
-```
-
 ## Юнит-тесты
 
-Юнит-тесты используют пакет:
+Юнит-тесты используют:
 
 ```text
 Microsoft.EntityFrameworkCore.InMemory
 ```
 
-Для тестов создаётся DI-контейнер с тестовым `AppDbContext`:
+Каждый тест создаёт отдельную базу данных с уникальным именем.
 
-```csharp
-var databaseName = Guid.NewGuid().ToString();
-
-services.AddDbContext<AppDbContext>(
-    options => options.UseInMemoryDatabase(databaseName));
-```
-
-Имя базы данных сохраняется в переменной, чтобы все scope одного теста использовали одну базу.
-
-В конкурентных тестах каждый параллельный запрос создаёт собственный scope:
-
-```csharp
-using var scope = serviceProvider.CreateScope();
-
-var bookingService = scope.ServiceProvider
-    .GetRequiredService<IBookingService>();
-```
-
-## Запуск тестов
-
-Запустить все тесты:
+Запуск:
 
 ```bash
 dotnet test \
   EventService.Tests/EventService.Tests.csproj
 ```
 
-Запустить тесты с подробным выводом:
+## Интеграционные тесты
+
+Интеграционные тесты используют настоящий PostgreSQL, который запускается через Testcontainers.
+
+Проверяются:
+
+- применение начальной миграции;
+- создание таблиц;
+- наличие внешнего ключа;
+- добавление событий;
+- чтение событий;
+- фильтрация и пагинация;
+- обновление событий;
+- удаление событий;
+- добавление бронирований;
+- чтение бронирований;
+- получение ожидающих бронирований;
+- обновление статуса;
+- удаление бронирований.
+
+Для запуска интеграционных тестов Docker должен быть доступен текущему пользователю:
+
+```bash
+docker info
+```
+
+Запуск:
 
 ```bash
 dotnet test \
-  EventService.Tests/EventService.Tests.csproj \
-  --logger "console;verbosity=normal"
+  EventApi.IntegrationTests/EventApi.IntegrationTests.csproj
 ```
 
-Запустить только конкурентные тесты:
+Не следует запускать тесты через `sudo`.
+
+## Полная проверка
 
 ```bash
-dotnet test \
-  EventService.Tests/EventService.Tests.csproj \
-  --filter "FullyQualifiedName~ConcurrentBookings"
-```
-
-## Проверка проекта
-
-Полная проверка из корня репозитория:
-
-```bash
-dotnet build BookManager/BookManager.csproj
+dotnet build BookManager/BookManager.sln
 
 dotnet test \
   EventService.Tests/EventService.Tests.csproj
+
+dotnet test \
+  EventApi.IntegrationTests/EventApi.IntegrationTests.csproj
+
+git diff --check
 ```

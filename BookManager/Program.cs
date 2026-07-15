@@ -4,6 +4,8 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using MyWebApiProject.BackgroundServices;
 using MyWebApiProject.DataAccess;
+using MyWebApiProject.DataAccess.Repositories;
+using MyWebApiProject.DataAccess.UnitOfWork;
 using MyWebApiProject.Middleware;
 using MyWebApiProject.Options;
 using MyWebApiProject.Services;
@@ -61,6 +63,18 @@ builder.Services.AddDbContext<AppDbContext>(
         connectionString));
 
 builder.Services.AddScoped<
+    IEventRepository,
+    EventRepository>();
+
+builder.Services.AddScoped<
+    IBookingRepository,
+    BookingRepository>();
+
+builder.Services.AddScoped<
+    IUnitOfWork,
+    UnitOfWork>();
+
+builder.Services.AddScoped<
     IEventService,
     EventService>();
 
@@ -81,7 +95,7 @@ using (var scope = app.Services.CreateScope())
     var database = scope.ServiceProvider
         .GetRequiredService<AppDbContext>();
 
-    database.Database.EnsureCreated();
+    database.Database.Migrate();
 }
 
 app.UseMiddleware<ExceptionHandlingMiddleware>();
