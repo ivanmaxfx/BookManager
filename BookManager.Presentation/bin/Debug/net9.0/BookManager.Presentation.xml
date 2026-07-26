@@ -1,7 +1,7 @@
 <?xml version="1.0"?>
 <doc>
     <assembly>
-        <name>BookManager</name>
+        <name>BookManager.Presentation</name>
     </assembly>
     <members>
         <member name="T:MyWebApiProject.Controllers.BookingsController">

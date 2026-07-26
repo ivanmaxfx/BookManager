@@ -1,0 +1,56 @@
+{
+  "runtimeTarget": {
+    "name": ".NETCoreApp,Version=v9.0",
+    "signature": ""
+  },
+  "compilationOptions": {},
+  "targets": {
+    ".NETCoreApp,Version=v9.0": {
+      "BookManager.Infrastructure/1.0.0": {
+        "dependencies": {
+          "BookManager.Application": "1.0.0",
+          "BookManager.Domain": "1.0.0"
+        },
+        "runtime": {
+          "BookManager.Infrastructure.dll": {}
+        }
+      },
+      "BookManager.Application/1.0.0": {
+        "dependencies": {
+          "BookManager.Domain": "1.0.0"
+        },
+        "runtime": {
+          "BookManager.Application.dll": {
+            "assemblyVersion": "1.0.0",
+            "fileVersion": "1.0.0.0"
+          }
+        }
+      },
+      "BookManager.Domain/1.0.0": {
+        "runtime": {
+          "BookManager.Domain.dll": {
+            "assemblyVersion": "1.0.0",
+            "fileVersion": "1.0.0.0"
+          }
+        }
+      }
+    }
+  },
+  "libraries": {
+    "BookManager.Infrastructure/1.0.0": {
+      "type": "project",
+      "serviceable": false,
+      "sha512": ""
+    },
+    "BookManager.Application/1.0.0": {
+      "type": "project",
+      "serviceable": false,
+      "sha512": ""
+    },
+    "BookManager.Domain/1.0.0": {
+      "type": "project",
+      "serviceable": false,
+      "sha512": ""
+    }
+  }
+}

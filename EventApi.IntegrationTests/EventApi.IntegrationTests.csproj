@@ -30,7 +30,7 @@
   </ItemGroup>
 
   <ItemGroup>
-    <ProjectReference Include="..\BookManager\BookManager.csproj" />
+    <ProjectReference Include="..\BookManager.Presentation\BookManager.Presentation.csproj" />
   </ItemGroup>
 
 </Project>
