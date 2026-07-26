@@ -8,7 +8,7 @@
     ".NETCoreApp,Version=v9.0": {
       "EventService.Tests/1.0.0": {
         "dependencies": {
-          "BookManager": "1.0.0",
+          "BookManager.Presentation": "1.0.0",
           "FluentAssertions": "8.9.0",
           "Microsoft.EntityFrameworkCore.InMemory": "9.0.17",
           "Microsoft.NET.Test.Sdk": "17.12.0",
@@ -572,14 +572,47 @@
         }
       },
       "xunit.runner.visualstudio/2.8.2": {},
-      "BookManager/1.0.0": {
+      "BookManager.Application/1.0.0": {
         "dependencies": {
+          "BookManager.Domain": "1.0.0"
+        },
+        "runtime": {
+          "BookManager.Application.dll": {
+            "assemblyVersion": "1.0.0",
+            "fileVersion": "1.0.0.0"
+          }
+        }
+      },
+      "BookManager.Domain/1.0.0": {
+        "runtime": {
+          "BookManager.Domain.dll": {
+            "assemblyVersion": "1.0.0",
+            "fileVersion": "1.0.0.0"
+          }
+        }
+      },
+      "BookManager.Infrastructure/1.0.0": {
+        "dependencies": {
+          "BookManager.Application": "1.0.0",
+          "BookManager.Domain": "1.0.0"
+        },
+        "runtime": {
+          "BookManager.Infrastructure.dll": {
+            "assemblyVersion": "1.0.0",
+            "fileVersion": "1.0.0.0"
+          }
+        }
+      },
+      "BookManager.Presentation/1.0.0": {
+        "dependencies": {
+          "BookManager.Application": "1.0.0",
+          "BookManager.Infrastructure": "1.0.0",
           "Microsoft.EntityFrameworkCore": "9.0.17",
           "Npgsql.EntityFrameworkCore.PostgreSQL": "9.0.4",
           "Swashbuckle.AspNetCore": "6.6.2"
         },
         "runtime": {
-          "BookManager.dll": {
+          "BookManager.Presentation.dll": {
             "assemblyVersion": "1.0.0",
             "fileVersion": "1.0.0.0"
           }
@@ -859,7 +892,22 @@
       "path": "xunit.runner.visualstudio/2.8.2",
       "hashPath": "xunit.runner.visualstudio.2.8.2.nupkg.sha512"
     },
-    "BookManager/1.0.0": {
+    "BookManager.Application/1.0.0": {
+      "type": "project",
+      "serviceable": false,
+      "sha512": ""
+    },
+    "BookManager.Domain/1.0.0": {
+      "type": "project",
+      "serviceable": false,
+      "sha512": ""
+    },
+    "BookManager.Infrastructure/1.0.0": {
+      "type": "project",
+      "serviceable": false,
+      "sha512": ""
+    },
+    "BookManager.Presentation/1.0.0": {
       "type": "project",
       "serviceable": false,
       "sha512": ""

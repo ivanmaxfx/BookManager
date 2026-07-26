@@ -1,4 +1,4 @@
-namespace MyWebApiProject.Exceptions
+namespace BookManager.Domain.Exceptions
 {
     /// <summary>
     /// Исключение, возникающее, когда ресурс не найден.

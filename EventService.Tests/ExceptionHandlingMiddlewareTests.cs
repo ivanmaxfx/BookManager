@@ -1,7 +1,7 @@
 using System.Text.Json;
 using Microsoft.AspNetCore.Http;
 using Microsoft.Extensions.Logging.Abstractions;
-using MyWebApiProject.Exceptions;
+using BookManager.Domain.Exceptions;
 using MyWebApiProject.Middleware;
 
 namespace EventService.Tests

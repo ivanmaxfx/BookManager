@@ -1,7 +1,7 @@
 using Microsoft.EntityFrameworkCore;
 using MyWebApiProject.DataAccess.Repositories;
 using MyWebApiProject.DataAccess.UnitOfWork;
-using EventEntity = MyWebApiProject.Models.Event;
+using EventEntity = BookManager.Domain.Entities.Event;
 
 namespace EventApi.IntegrationTests
 {

@@ -1,7 +1,8 @@
 using Microsoft.Extensions.Options;
 using MyWebApiProject.DataAccess.Repositories;
 using MyWebApiProject.DataAccess.UnitOfWork;
-using MyWebApiProject.Models;
+using BookManager.Domain.Entities;
+using BookManager.Domain.Enums;
 using MyWebApiProject.Options;
 
 namespace MyWebApiProject.BackgroundServices

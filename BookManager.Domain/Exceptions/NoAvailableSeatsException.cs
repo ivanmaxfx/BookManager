@@ -1,4 +1,4 @@
-namespace MyWebApiProject.Exceptions
+namespace BookManager.Domain.Exceptions
 {
     public class NoAvailableSeatsException : Exception
     {

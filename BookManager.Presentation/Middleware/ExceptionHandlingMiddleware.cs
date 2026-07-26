@@ -1,6 +1,6 @@
 using System.Text.Json;
 using Microsoft.AspNetCore.Mvc;
-using MyWebApiProject.Exceptions;
+using BookManager.Domain.Exceptions;
 
 namespace MyWebApiProject.Middleware
 {

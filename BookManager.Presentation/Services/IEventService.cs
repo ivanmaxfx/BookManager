@@ -1,5 +1,6 @@
 using MyWebApiProject.Dtos;
-using MyWebApiProject.Models;
+using BookManager.Domain.Entities;
+using BookManager.Domain.Enums;
 
 namespace MyWebApiProject.Services
 {

@@ -1,4 +1,4 @@
-namespace MyWebApiProject.Exceptions
+namespace BookManager.Domain.Exceptions
 {
     /// <summary>
     /// Исключение для ошибок валидации бизнес-логики.

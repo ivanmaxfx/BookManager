@@ -1,6 +1,7 @@
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Metadata.Builders;
-using MyWebApiProject.Models;
+using BookManager.Domain.Entities;
+using BookManager.Domain.Enums;
 
 namespace MyWebApiProject.DataAccess.Configurations
 {

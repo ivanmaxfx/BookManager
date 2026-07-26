@@ -1,4 +1,6 @@
-namespace MyWebApiProject.Models
+using BookManager.Domain.Enums;
+
+namespace BookManager.Domain.Entities
 {
     /// <summary>
     /// Бронирование мероприятия.

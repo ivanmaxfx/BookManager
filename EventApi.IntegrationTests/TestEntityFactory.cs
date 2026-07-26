@@ -1,5 +1,6 @@
-using MyWebApiProject.Models;
-using EventEntity = MyWebApiProject.Models.Event;
+using BookManager.Domain.Entities;
+using BookManager.Domain.Enums;
+using EventEntity = BookManager.Domain.Entities.Event;
 
 namespace EventApi.IntegrationTests
 {

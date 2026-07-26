@@ -1,4 +1,4 @@
-namespace MyWebApiProject.Models
+namespace BookManager.Domain.Enums
 {
     /// <summary>
     /// Статус бронирования.

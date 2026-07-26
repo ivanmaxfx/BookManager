@@ -6,15 +6,17 @@
   "compilationOptions": {},
   "targets": {
     ".NETCoreApp,Version=v9.0": {
-      "BookManager/1.0.0": {
+      "BookManager.Presentation/1.0.0": {
         "dependencies": {
+          "BookManager.Application": "1.0.0",
+          "BookManager.Infrastructure": "1.0.0",
           "Microsoft.EntityFrameworkCore": "9.0.17",
           "Microsoft.EntityFrameworkCore.Design": "9.0.17",
           "Npgsql.EntityFrameworkCore.PostgreSQL": "9.0.4",
           "Swashbuckle.AspNetCore": "6.6.2"
         },
         "runtime": {
-          "BookManager.dll": {}
+          "BookManager.Presentation.dll": {}
         }
       },
       "Humanizer.Core/2.14.1": {
@@ -648,11 +650,42 @@
       },
       "System.Runtime.CompilerServices.Unsafe/6.0.0": {},
       "System.Text.Json/9.0.17": {},
-      "System.Threading.Channels/7.0.0": {}
+      "System.Threading.Channels/7.0.0": {},
+      "BookManager.Application/1.0.0": {
+        "dependencies": {
+          "BookManager.Domain": "1.0.0"
+        },
+        "runtime": {
+          "BookManager.Application.dll": {
+            "assemblyVersion": "1.0.0",
+            "fileVersion": "1.0.0.0"
+          }
+        }
+      },
+      "BookManager.Domain/1.0.0": {
+        "runtime": {
+          "BookManager.Domain.dll": {
+            "assemblyVersion": "1.0.0",
+            "fileVersion": "1.0.0.0"
+          }
+        }
+      },
+      "BookManager.Infrastructure/1.0.0": {
+        "dependencies": {
+          "BookManager.Application": "1.0.0",
+          "BookManager.Domain": "1.0.0"
+        },
+        "runtime": {
+          "BookManager.Infrastructure.dll": {
+            "assemblyVersion": "1.0.0",
+            "fileVersion": "1.0.0.0"
+          }
+        }
+      }
     }
   },
   "libraries": {
-    "BookManager/1.0.0": {
+    "BookManager.Presentation/1.0.0": {
       "type": "project",
       "serviceable": false,
       "sha512": ""
@@ -985,6 +1018,21 @@
       "sha512": "sha512-qmeeYNROMsONF6ndEZcIQ+VxR4Q/TX/7uIVLJqtwIWL7dDWeh0l1UIqgo4wYyjG//5lUNhwkLDSFl+pAWO6oiA==",
       "path": "system.threading.channels/7.0.0",
       "hashPath": "system.threading.channels.7.0.0.nupkg.sha512"
+    },
+    "BookManager.Application/1.0.0": {
+      "type": "project",
+      "serviceable": false,
+      "sha512": ""
+    },
+    "BookManager.Domain/1.0.0": {
+      "type": "project",
+      "serviceable": false,
+      "sha512": ""
+    },
+    "BookManager.Infrastructure/1.0.0": {
+      "type": "project",
+      "serviceable": false,
+      "sha512": ""
     }
   }
 }

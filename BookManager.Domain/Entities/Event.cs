@@ -1,6 +1,6 @@
-using MyWebApiProject.Exceptions;
+using BookManager.Domain.Exceptions;
 
-namespace MyWebApiProject.Models
+namespace BookManager.Domain.Entities
 {
     public class Event
     {

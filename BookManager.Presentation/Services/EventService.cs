@@ -2,8 +2,9 @@ using Microsoft.EntityFrameworkCore;
 using MyWebApiProject.DataAccess.Repositories;
 using MyWebApiProject.DataAccess.UnitOfWork;
 using MyWebApiProject.Dtos;
-using MyWebApiProject.Exceptions;
-using MyWebApiProject.Models;
+using BookManager.Domain.Exceptions;
+using BookManager.Domain.Entities;
+using BookManager.Domain.Enums;
 
 namespace MyWebApiProject.Services
 {
