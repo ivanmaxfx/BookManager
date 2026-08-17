@@ -30,7 +30,9 @@
   </ItemGroup>
 
   <ItemGroup>
-    <ProjectReference Include="..\BookManager\BookManager.csproj" />
+    <ProjectReference Include="..\BookManager.Infrastructure\BookManager.Infrastructure.csproj" />
+    <ProjectReference Include="..\BookManager.Application\BookManager.Application.csproj" />
+    <ProjectReference Include="..\BookManager.Domain\BookManager.Domain.csproj" />
   </ItemGroup>
 
 </Project>

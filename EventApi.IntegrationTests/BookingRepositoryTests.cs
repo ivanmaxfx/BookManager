@@ -1,7 +1,9 @@
+using BookManager.Infrastructure.DataAccess.Repositories;
+using BookManager.Infrastructure.DataAccess.UnitOfWork;
 using Microsoft.EntityFrameworkCore;
-using MyWebApiProject.DataAccess.Repositories;
-using MyWebApiProject.DataAccess.UnitOfWork;
-using MyWebApiProject.Models;
+using BookManager.Application.Abstractions.Persistence;
+using BookManager.Domain.Entities;
+using BookManager.Domain.Enums;
 
 namespace EventApi.IntegrationTests
 {

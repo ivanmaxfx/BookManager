@@ -1,8 +1,9 @@
 using Microsoft.Extensions.DependencyInjection;
-using MyWebApiProject.Dtos;
-using MyWebApiProject.Exceptions;
-using MyWebApiProject.Models;
-using MyWebApiProject.Services;
+using BookManager.Application.Dtos;
+using BookManager.Domain.Exceptions;
+using BookManager.Domain.Entities;
+using BookManager.Domain.Enums;
+using BookManager.Application.Services;
 
 namespace EventService.Tests
 {
