@@ -4,7 +4,7 @@ using Microsoft.Extensions.Logging.Abstractions;
 using BookManager.Domain.Exceptions;
 using MyWebApiProject.Middleware;
 
-namespace EventService.Tests
+namespace BookManager.Presentation.Tests
 {
     public class ExceptionHandlingMiddlewareTests
     {

@@ -673,7 +673,9 @@
       "BookManager.Infrastructure/1.0.0": {
         "dependencies": {
           "BookManager.Application": "1.0.0",
-          "BookManager.Domain": "1.0.0"
+          "BookManager.Domain": "1.0.0",
+          "Microsoft.EntityFrameworkCore": "9.0.17",
+          "Npgsql.EntityFrameworkCore.PostgreSQL": "9.0.4"
         },
         "runtime": {
           "BookManager.Infrastructure.dll": {
