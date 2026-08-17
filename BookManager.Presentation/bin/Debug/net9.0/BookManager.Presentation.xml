@@ -4,17 +4,17 @@
         <name>BookManager.Presentation</name>
     </assembly>
     <members>
-        <member name="T:MyWebApiProject.Controllers.BookingsController">
+        <member name="T:BookManager.Presentation.Controllers.BookingsController">
             <summary>
             API для получения информации о бронированиях.
             </summary>
         </member>
-        <member name="M:MyWebApiProject.Controllers.BookingsController.GetById(System.Guid,System.Threading.CancellationToken)">
+        <member name="M:BookManager.Presentation.Controllers.BookingsController.GetById(System.Guid,System.Threading.CancellationToken)">
             <summary>
             Получить текущее состояние бронирования.
             </summary>
         </member>
-        <member name="T:MyWebApiProject.Options.BookingProcessingOptions">
+        <member name="T:BookManager.Presentation.Options.BookingProcessingOptions">
             <summary>
             Настройки фоновой обработки бронирований.
             </summary>

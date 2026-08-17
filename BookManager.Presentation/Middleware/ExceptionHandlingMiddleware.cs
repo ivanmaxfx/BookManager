@@ -2,7 +2,7 @@ using System.Text.Json;
 using Microsoft.AspNetCore.Mvc;
 using BookManager.Domain.Exceptions;
 
-namespace MyWebApiProject.Middleware
+namespace BookManager.Presentation.Middleware
 {
     public class ExceptionHandlingMiddleware
     {

@@ -14,6 +14,8 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "BookManager.Infrastructure"
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "BookManager.Presentation.Tests", "..\BookManager.Presentation.Tests\BookManager.Presentation.Tests.csproj", "{6457B0A3-D3FF-4EEB-A69D-AB98A3EC9122}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "EventService.Tests", "..\EventService.Tests\EventService.Tests.csproj", "{DC211D58-3BD8-4660-B6F9-8F0878C7D276}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -44,6 +46,10 @@ Global
 		{6457B0A3-D3FF-4EEB-A69D-AB98A3EC9122}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{6457B0A3-D3FF-4EEB-A69D-AB98A3EC9122}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{6457B0A3-D3FF-4EEB-A69D-AB98A3EC9122}.Release|Any CPU.Build.0 = Release|Any CPU
+		{DC211D58-3BD8-4660-B6F9-8F0878C7D276}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{DC211D58-3BD8-4660-B6F9-8F0878C7D276}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{DC211D58-3BD8-4660-B6F9-8F0878C7D276}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{DC211D58-3BD8-4660-B6F9-8F0878C7D276}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE

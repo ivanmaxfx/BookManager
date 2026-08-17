@@ -4,7 +4,7 @@ using BookManager.Domain.Entities;
 using BookManager.Domain.Enums;
 using BookManager.Application.Services;
 
-namespace MyWebApiProject.Controllers
+namespace BookManager.Presentation.Controllers
 {
     [ApiController]
     [Route("events")]

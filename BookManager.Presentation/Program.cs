@@ -4,11 +4,11 @@ using System.Reflection;
 using System.Text.Json.Serialization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
-using MyWebApiProject.BackgroundServices;
+using BookManager.Presentation.BackgroundServices;
 using BookManager.Infrastructure.DataAccess;
 using BookManager.Application.Abstractions.Persistence;
-using MyWebApiProject.Middleware;
-using MyWebApiProject.Options;
+using BookManager.Presentation.Middleware;
+using BookManager.Presentation.Options;
 using BookManager.Application.Services;
 
 var builder = WebApplication.CreateBuilder(args);

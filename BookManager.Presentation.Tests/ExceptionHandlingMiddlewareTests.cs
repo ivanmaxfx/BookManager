@@ -2,7 +2,7 @@ using System.Text.Json;
 using Microsoft.AspNetCore.Http;
 using Microsoft.Extensions.Logging.Abstractions;
 using BookManager.Domain.Exceptions;
-using MyWebApiProject.Middleware;
+using BookManager.Presentation.Middleware;
 
 namespace BookManager.Presentation.Tests
 {

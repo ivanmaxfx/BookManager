@@ -2,9 +2,9 @@ using Microsoft.Extensions.Options;
 using BookManager.Application.Abstractions.Persistence;
 using BookManager.Domain.Entities;
 using BookManager.Domain.Enums;
-using MyWebApiProject.Options;
+using BookManager.Presentation.Options;
 
-namespace MyWebApiProject.BackgroundServices
+namespace BookManager.Presentation.BackgroundServices
 {
     public sealed class BookingBackgroundService :
         BackgroundService

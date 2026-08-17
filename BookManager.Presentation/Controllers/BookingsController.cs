@@ -2,7 +2,7 @@ using Microsoft.AspNetCore.Mvc;
 using BookManager.Application.Dtos;
 using BookManager.Application.Services;
 
-namespace MyWebApiProject.Controllers
+namespace BookManager.Presentation.Controllers
 {
     /// <summary>
     /// API для получения информации о бронированиях.

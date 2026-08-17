@@ -1,4 +1,4 @@
-namespace MyWebApiProject.Options
+namespace BookManager.Presentation.Options
 {
     /// <summary>
     /// Настройки фоновой обработки бронирований.
