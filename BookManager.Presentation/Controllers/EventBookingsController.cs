@@ -1,6 +1,6 @@
 using Microsoft.AspNetCore.Mvc;
-using MyWebApiProject.Dtos;
-using MyWebApiProject.Services;
+using BookManager.Application.Dtos;
+using BookManager.Application.Services;
 
 namespace MyWebApiProject.Controllers
 {

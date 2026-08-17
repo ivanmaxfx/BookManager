@@ -1,6 +1,5 @@
 using Microsoft.Extensions.Options;
-using MyWebApiProject.DataAccess.Repositories;
-using MyWebApiProject.DataAccess.UnitOfWork;
+using BookManager.Application.Abstractions.Persistence;
 using BookManager.Domain.Entities;
 using BookManager.Domain.Enums;
 using MyWebApiProject.Options;

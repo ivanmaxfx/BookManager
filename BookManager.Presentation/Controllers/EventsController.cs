@@ -1,8 +1,8 @@
 using Microsoft.AspNetCore.Mvc;
-using MyWebApiProject.Dtos;
+using BookManager.Application.Dtos;
 using BookManager.Domain.Entities;
 using BookManager.Domain.Enums;
-using MyWebApiProject.Services;
+using BookManager.Application.Services;
 
 namespace MyWebApiProject.Controllers
 {

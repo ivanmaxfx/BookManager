@@ -1,5 +1,5 @@
 using Microsoft.EntityFrameworkCore;
-using MyWebApiProject.DataAccess;
+using BookManager.Infrastructure.DataAccess;
 using Testcontainers.PostgreSql;
 
 namespace EventApi.IntegrationTests

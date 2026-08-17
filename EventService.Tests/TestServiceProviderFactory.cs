@@ -1,9 +1,8 @@
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using MyWebApiProject.DataAccess;
-using MyWebApiProject.DataAccess.Repositories;
-using MyWebApiProject.DataAccess.UnitOfWork;
-using MyWebApiProject.Services;
+using BookManager.Application.Abstractions.Persistence;
+using BookManager.Application.Services;
 using EventServiceImpl =
     MyWebApiProject.Services.EventService;
 

@@ -87,7 +87,7 @@ namespace EventApi.IntegrationTests
 
         private static async Task<HashSet<string>>
             GetPublicTableNamesAsync(
-                MyWebApiProject.DataAccess.AppDbContext context)
+                BookManager.Infrastructure.DataAccess.AppDbContext context)
         {
             var result =
                 new HashSet<string>(

@@ -1,14 +1,15 @@
+using BookManager.Infrastructure.DataAccess.Repositories;
+using BookManager.Infrastructure.DataAccess.UnitOfWork;
 using System.Reflection;
 using System.Text.Json.Serialization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using MyWebApiProject.BackgroundServices;
-using MyWebApiProject.DataAccess;
-using MyWebApiProject.DataAccess.Repositories;
-using MyWebApiProject.DataAccess.UnitOfWork;
+using BookManager.Infrastructure.DataAccess;
+using BookManager.Application.Abstractions.Persistence;
 using MyWebApiProject.Middleware;
 using MyWebApiProject.Options;
-using MyWebApiProject.Services;
+using BookManager.Application.Services;
 
 var builder = WebApplication.CreateBuilder(args);
 
