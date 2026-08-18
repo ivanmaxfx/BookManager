@@ -1,13 +1,12 @@
 using BookManager.Application.Abstractions.Persistence;
+using BookManager.Application.Abstractions.Security;
 using BookManager.Application.Services;
 using BookManager.Infrastructure.DataAccess;
 using BookManager.Infrastructure.DataAccess.Repositories;
 using BookManager.Infrastructure.DataAccess.UnitOfWork;
+using BookManager.Infrastructure.Security;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
-
-using EventServiceImpl =
-    BookManager.Application.Services.EventService;
 
 namespace EventService.Tests
 {
@@ -36,19 +35,45 @@ namespace EventService.Tests
                 BookingRepository>();
 
             services.AddScoped<
+                IUserRepository,
+                UserRepository>();
+
+            services.AddScoped<
                 IUnitOfWork,
                 UnitOfWork>();
 
+            services.AddSingleton<
+                IPasswordHasher,
+                PasswordHasher>();
+
+            services.AddSingleton(
+                new JwtOptions
+                {
+                    Secret =
+                        "BookManager-Test-Secret-Key-"
+                        + "For-Sprint-8-123456789",
+                    Issuer = "BookManager.Tests",
+                    Audience = "BookManager.Tests",
+                    LifetimeMinutes = 60
+                });
+
+            services.AddSingleton<
+                IJwtTokenGenerator,
+                JwtTokenGenerator>();
+
             services.AddScoped<
                 IEventService,
-                EventServiceImpl>();
+                BookManager.Application.Services.EventService>();
 
             services.AddScoped<
                 IBookingService,
                 BookingService>();
 
-            return services
-                .BuildServiceProvider();
+            services.AddScoped<
+                IAuthService,
+                AuthService>();
+
+            return services.BuildServiceProvider();
         }
     }
 }

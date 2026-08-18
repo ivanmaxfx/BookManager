@@ -1,4 +1,5 @@
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.Authorization;
 using BookManager.Application.Dtos;
 using BookManager.Domain.Entities;
 using BookManager.Domain.Enums;
@@ -69,6 +70,7 @@ namespace BookManager.Presentation.Controllers
                 EventInfo.FromEvent(eventItem));
         }
 
+        [Authorize(Roles = "Admin")]
         [HttpPost]
         [ProducesResponseType(
             typeof(EventInfo),
@@ -101,6 +103,7 @@ namespace BookManager.Presentation.Controllers
                 response);
         }
 
+        [Authorize(Roles = "Admin")]
         [HttpPut("{id:guid}")]
         [ProducesResponseType(
             StatusCodes.Status204NoContent)]
@@ -130,6 +133,7 @@ namespace BookManager.Presentation.Controllers
             return NoContent();
         }
 
+        [Authorize(Roles = "Admin")]
         [HttpDelete("{id:guid}")]
         [ProducesResponseType(
             StatusCodes.Status204NoContent)]

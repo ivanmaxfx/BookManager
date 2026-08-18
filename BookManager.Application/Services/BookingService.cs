@@ -1,42 +1,51 @@
 using BookManager.Application.Abstractions.Persistence;
 using BookManager.Application.Dtos;
-using BookManager.Domain.Exceptions;
 using BookManager.Domain.Entities;
+using BookManager.Domain.Enums;
+using BookManager.Domain.Exceptions;
 
 namespace BookManager.Application.Services
 {
     public sealed class BookingService : IBookingService
     {
+        public const int MaxActiveBookingsPerUser = 10;
+
         private static readonly SemaphoreSlim BookingSemaphore =
             new(1, 1);
 
-        private readonly IEventRepository _eventRepository;
-        private readonly IBookingRepository _bookingRepository;
+        private readonly IEventRepository _events;
+        private readonly IBookingRepository _bookings;
         private readonly IUnitOfWork _unitOfWork;
 
         public BookingService(
-            IEventRepository eventRepository,
-            IBookingRepository bookingRepository,
+            IEventRepository events,
+            IBookingRepository bookings,
             IUnitOfWork unitOfWork)
         {
-            _eventRepository = eventRepository;
-            _bookingRepository = bookingRepository;
+            _events = events;
+            _bookings = bookings;
             _unitOfWork = unitOfWork;
         }
 
         public async Task<BookingInfo> CreateBookingAsync(
             Guid eventId,
+            Guid userId,
             CancellationToken cancellationToken = default)
         {
-            await BookingSemaphore.WaitAsync(
-                cancellationToken);
+            if (userId == Guid.Empty)
+            {
+                throw new ValidationException(
+                    "UserId must not be empty.");
+            }
+
+            await BookingSemaphore.WaitAsync(cancellationToken);
 
             try
             {
                 var eventItem =
-                    await _eventRepository.GetByIdAsync(
+                    await _events.GetByIdAsync(
                         eventId,
-                        trackChanges: true,
+                        true,
                         cancellationToken);
 
                 if (eventItem is null)
@@ -45,25 +54,42 @@ namespace BookManager.Application.Services
                         $"Event with id '{eventId}' was not found.");
                 }
 
+                if (eventItem.StartAt <= DateTime.UtcNow)
+                {
+                    throw new EventAlreadyStartedException();
+                }
+
+                var activeCount =
+                    await _bookings.CountActiveByUserIdAsync(
+                        userId,
+                        cancellationToken);
+
+                if (activeCount >= MaxActiveBookingsPerUser)
+                {
+                    throw new BookingLimitExceededException(
+                        MaxActiveBookingsPerUser);
+                }
+
                 if (!eventItem.TryReserveSeats())
                 {
                     throw new NoAvailableSeatsException();
                 }
 
                 var booking =
-                    Booking.CreatePending(eventId);
+                    Booking.CreatePending(
+                        eventId,
+                        userId);
 
-                _eventRepository.Update(eventItem);
+                _events.Update(eventItem);
 
-                await _bookingRepository.AddAsync(
+                await _bookings.AddAsync(
                     booking,
                     cancellationToken);
 
                 await _unitOfWork.SaveChangesAsync(
                     cancellationToken);
 
-                return BookingInfo.FromBooking(
-                    booking);
+                return BookingInfo.FromBooking(booking);
             }
             finally
             {
@@ -76,9 +102,9 @@ namespace BookManager.Application.Services
             CancellationToken cancellationToken = default)
         {
             var booking =
-                await _bookingRepository.GetByIdAsync(
+                await _bookings.GetByIdAsync(
                     bookingId,
-                    trackChanges: false,
+                    false,
                     cancellationToken);
 
             if (booking is null)
@@ -87,8 +113,7 @@ namespace BookManager.Application.Services
                     $"Booking with id '{bookingId}' was not found.");
             }
 
-            return BookingInfo.FromBooking(
-                booking);
+            return BookingInfo.FromBooking(booking);
         }
 
         public async Task<IReadOnlyCollection<BookingInfo>>
@@ -96,7 +121,7 @@ namespace BookManager.Application.Services
                 CancellationToken cancellationToken = default)
         {
             var bookings =
-                await _bookingRepository.GetPendingAsync(
+                await _bookings.GetPendingAsync(
                     cancellationToken);
 
             return bookings
@@ -109,12 +134,12 @@ namespace BookManager.Application.Services
             CancellationToken cancellationToken = default)
         {
             var booking =
-                await GetTrackedBookingOrThrowAsync(
+                await GetTrackedAsync(
                     bookingId,
                     cancellationToken);
 
             booking.Confirm();
-            _bookingRepository.Update(booking);
+            _bookings.Update(booking);
 
             await _unitOfWork.SaveChangesAsync(
                 cancellationToken);
@@ -125,29 +150,72 @@ namespace BookManager.Application.Services
             CancellationToken cancellationToken = default)
         {
             var booking =
-                await GetTrackedBookingOrThrowAsync(
+                await GetTrackedAsync(
                     bookingId,
                     cancellationToken);
 
             booking.Reject();
-            _bookingRepository.Update(booking);
+            _bookings.Update(booking);
 
             await _unitOfWork.SaveChangesAsync(
                 cancellationToken);
         }
 
-        private async Task<Booking>
-            GetTrackedBookingOrThrowAsync(
-                Guid bookingId,
-                CancellationToken cancellationToken)
+        public async Task CancelBookingAsync(
+            Guid bookingId,
+            Guid currentUserId,
+            UserRole currentUserRole,
+            CancellationToken cancellationToken = default)
         {
-            var booking =
-                await _bookingRepository.GetByIdAsync(
-                    bookingId,
-                    trackChanges: true,
-                    cancellationToken);
+            await BookingSemaphore.WaitAsync(cancellationToken);
 
-            return booking
+            try
+            {
+                var booking =
+                    await GetTrackedAsync(
+                        bookingId,
+                        cancellationToken);
+
+                if (currentUserRole != UserRole.Admin &&
+                    booking.UserId != currentUserId)
+                {
+                    throw new ForbiddenOperationException(
+                        "You can cancel only your own bookings.");
+                }
+
+                var eventItem =
+                    await _events.GetByIdAsync(
+                        booking.EventId,
+                        true,
+                        cancellationToken);
+
+                booking.Cancel();
+                _bookings.Update(booking);
+
+                if (eventItem is not null)
+                {
+                    eventItem.ReleaseSeats();
+                    _events.Update(eventItem);
+                }
+
+                await _unitOfWork.SaveChangesAsync(
+                    cancellationToken);
+            }
+            finally
+            {
+                BookingSemaphore.Release();
+            }
+        }
+
+        private async Task<Booking> GetTrackedAsync(
+            Guid bookingId,
+            CancellationToken cancellationToken)
+        {
+            return
+                await _bookings.GetByIdAsync(
+                    bookingId,
+                    true,
+                    cancellationToken)
                 ?? throw new NotFoundException(
                     $"Booking with id '{bookingId}' was not found.");
         }

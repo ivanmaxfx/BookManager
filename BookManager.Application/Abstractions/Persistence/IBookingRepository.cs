@@ -1,5 +1,4 @@
 using BookManager.Domain.Entities;
-using BookManager.Domain.Enums;
 
 namespace BookManager.Application.Abstractions.Persistence
 {
@@ -10,13 +9,15 @@ namespace BookManager.Application.Abstractions.Persistence
             bool trackChanges,
             CancellationToken cancellationToken = default);
 
-        Task<IReadOnlyCollection<Booking>>
-            GetPendingAsync(
-                CancellationToken cancellationToken = default);
+        Task<IReadOnlyCollection<Booking>> GetPendingAsync(
+            CancellationToken cancellationToken = default);
 
-        Task<IReadOnlyCollection<Guid>>
-            GetPendingIdsAsync(
-                CancellationToken cancellationToken = default);
+        Task<IReadOnlyCollection<Guid>> GetPendingIdsAsync(
+            CancellationToken cancellationToken = default);
+
+        Task<int> CountActiveByUserIdAsync(
+            Guid userId,
+            CancellationToken cancellationToken = default);
 
         Task AddAsync(
             Booking booking,

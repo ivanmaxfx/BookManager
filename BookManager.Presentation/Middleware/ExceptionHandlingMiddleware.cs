@@ -1,13 +1,14 @@
 using System.Text.Json;
-using Microsoft.AspNetCore.Mvc;
 using BookManager.Domain.Exceptions;
+using Microsoft.AspNetCore.Mvc;
 
 namespace BookManager.Presentation.Middleware
 {
     public class ExceptionHandlingMiddleware
     {
         private readonly RequestDelegate _next;
-        private readonly ILogger<ExceptionHandlingMiddleware> _logger;
+        private readonly ILogger<
+            ExceptionHandlingMiddleware> _logger;
 
         public ExceptionHandlingMiddleware(
             RequestDelegate next,
@@ -17,7 +18,8 @@ namespace BookManager.Presentation.Middleware
             _logger = logger;
         }
 
-        public async Task InvokeAsync(HttpContext context)
+        public async Task InvokeAsync(
+            HttpContext context)
         {
             try
             {
@@ -39,41 +41,50 @@ namespace BookManager.Presentation.Middleware
             HttpContext context,
             Exception exception)
         {
-            var (statusCode, title) = exception switch
-            {
-                ValidationException => (
-                    StatusCodes.Status400BadRequest,
-                    "Validation error"),
+            var (status, title) =
+                exception switch
+                {
+                    ValidationException => (
+                        StatusCodes.Status400BadRequest,
+                        "Validation error"),
 
-                NotFoundException => (
-                    StatusCodes.Status404NotFound,
-                    "Resource not found"),
+                    EventAlreadyStartedException => (
+                        StatusCodes.Status400BadRequest,
+                        "Event already started"),
 
-                NoAvailableSeatsException => (
-                    StatusCodes.Status409Conflict,
-                    "No available seats"),
+                    NotFoundException => (
+                        StatusCodes.Status404NotFound,
+                        "Resource not found"),
 
-                _ => (
-                    StatusCodes.Status500InternalServerError,
-                    "Internal server error")
-            };
+                    ForbiddenOperationException => (
+                        StatusCodes.Status403Forbidden,
+                        "Forbidden"),
 
-            var problemDetails = new ProblemDetails
-            {
-                Status = statusCode,
-                Title = title,
-                Detail = exception.Message
-            };
+                    NoAvailableSeatsException => (
+                        StatusCodes.Status409Conflict,
+                        "No available seats"),
 
+                    BookingLimitExceededException => (
+                        StatusCodes.Status409Conflict,
+                        "Booking limit exceeded"),
+
+                    _ => (
+                        StatusCodes.Status500InternalServerError,
+                        "Internal server error")
+                };
+
+            context.Response.StatusCode = status;
             context.Response.ContentType =
                 "application/problem+json";
 
-            context.Response.StatusCode = statusCode;
-
-            var json = JsonSerializer.Serialize(
-                problemDetails);
-
-            await context.Response.WriteAsync(json);
+            await context.Response.WriteAsync(
+                JsonSerializer.Serialize(
+                    new ProblemDetails
+                    {
+                        Status = status,
+                        Title = title,
+                        Detail = exception.Message
+                    }));
         }
     }
 }

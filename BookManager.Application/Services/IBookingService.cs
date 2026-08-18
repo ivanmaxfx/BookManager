@@ -1,14 +1,13 @@
 using BookManager.Application.Dtos;
+using BookManager.Domain.Enums;
 
 namespace BookManager.Application.Services
 {
-    /// <summary>
-    /// Сервис для работы с бронированиями.
-    /// </summary>
     public interface IBookingService
     {
         Task<BookingInfo> CreateBookingAsync(
             Guid eventId,
+            Guid userId,
             CancellationToken cancellationToken = default);
 
         Task<BookingInfo> GetBookingByIdAsync(
@@ -24,6 +23,12 @@ namespace BookManager.Application.Services
 
         Task RejectBookingAsync(
             Guid bookingId,
+            CancellationToken cancellationToken = default);
+
+        Task CancelBookingAsync(
+            Guid bookingId,
+            Guid currentUserId,
+            UserRole currentUserRole,
             CancellationToken cancellationToken = default);
     }
 }

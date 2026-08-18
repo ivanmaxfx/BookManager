@@ -1,7 +1,6 @@
+using BookManager.Domain.Entities;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Metadata.Builders;
-using BookManager.Domain.Entities;
-using BookManager.Domain.Enums;
 
 namespace BookManager.Infrastructure.DataAccess.Configurations
 {
@@ -23,6 +22,10 @@ namespace BookManager.Infrastructure.DataAccess.Configurations
                 .HasColumnName("event_id")
                 .IsRequired();
 
+            builder.Property(booking => booking.UserId)
+                .HasColumnName("user_id")
+                .IsRequired();
+
             builder.Property(booking => booking.Status)
                 .HasColumnName("status")
                 .HasConversion<string>()
@@ -31,23 +34,36 @@ namespace BookManager.Infrastructure.DataAccess.Configurations
 
             builder.Property(booking => booking.CreatedAt)
                 .HasColumnName("created_at")
-                .HasColumnType("timestamp with time zone")
+                .HasColumnType(
+                    "timestamp with time zone")
                 .IsRequired();
 
             builder.Property(booking => booking.ProcessedAt)
                 .HasColumnName("processed_at")
-                .HasColumnType("timestamp with time zone");
+                .HasColumnType(
+                    "timestamp with time zone");
 
             builder.HasOne(booking => booking.Event)
                 .WithMany(eventItem => eventItem.Bookings)
                 .HasForeignKey(booking => booking.EventId)
                 .OnDelete(DeleteBehavior.Cascade);
 
+            builder.HasOne(booking => booking.User)
+                .WithMany(user => user.Bookings)
+                .HasForeignKey(booking => booking.UserId)
+                .OnDelete(DeleteBehavior.Restrict);
+
             builder.HasIndex(booking => booking.EventId)
-                .HasDatabaseName("ix_bookings_event_id");
+                .HasDatabaseName(
+                    "ix_bookings_event_id");
+
+            builder.HasIndex(booking => booking.UserId)
+                .HasDatabaseName(
+                    "ix_bookings_user_id");
 
             builder.HasIndex(booking => booking.Status)
-                .HasDatabaseName("ix_bookings_status");
+                .HasDatabaseName(
+                    "ix_bookings_status");
         }
     }
 }

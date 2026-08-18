@@ -3,14 +3,13 @@ using BookManager.Domain.Enums;
 
 namespace BookManager.Application.Dtos
 {
-    /// <summary>
-    /// Информация о бронировании, возвращаемая клиенту.
-    /// </summary>
     public class BookingInfo
     {
         public Guid Id { get; init; }
 
         public Guid EventId { get; init; }
+
+        public Guid UserId { get; init; }
 
         public BookingStatus Status { get; init; }
 
@@ -18,7 +17,8 @@ namespace BookManager.Application.Dtos
 
         public DateTime? ProcessedAt { get; init; }
 
-        public static BookingInfo FromBooking(Booking booking)
+        public static BookingInfo FromBooking(
+            Booking booking)
         {
             ArgumentNullException.ThrowIfNull(booking);
 
@@ -26,6 +26,7 @@ namespace BookManager.Application.Dtos
             {
                 Id = booking.Id,
                 EventId = booking.EventId,
+                UserId = booking.UserId,
                 Status = booking.Status,
                 CreatedAt = booking.CreatedAt,
                 ProcessedAt = booking.ProcessedAt

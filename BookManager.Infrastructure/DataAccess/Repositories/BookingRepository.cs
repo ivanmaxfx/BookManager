@@ -1,8 +1,7 @@
-using BookManager.Infrastructure.DataAccess;
 using BookManager.Application.Abstractions.Persistence;
-using Microsoft.EntityFrameworkCore;
 using BookManager.Domain.Entities;
 using BookManager.Domain.Enums;
+using Microsoft.EntityFrameworkCore;
 
 namespace BookManager.Infrastructure.DataAccess.Repositories
 {
@@ -61,6 +60,24 @@ namespace BookManager.Infrastructure.DataAccess.Repositories
                     booking.CreatedAt)
                 .Select(booking => booking.Id)
                 .ToListAsync(cancellationToken);
+        }
+
+        public Task<int> CountActiveByUserIdAsync(
+            Guid userId,
+            CancellationToken cancellationToken = default)
+        {
+            return _context.Bookings
+                .AsNoTracking()
+                .CountAsync(
+                    booking =>
+                        booking.UserId == userId &&
+                        (
+                            booking.Status ==
+                                BookingStatus.Pending ||
+                            booking.Status ==
+                                BookingStatus.Confirmed
+                        ),
+                    cancellationToken);
         }
 
         public Task AddAsync(
