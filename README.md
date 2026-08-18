@@ -1,408 +1,379 @@
-# BookManager
+# BookManager — Sprint 9
 
-BookManager — ASP.NET Core Web API для управления мероприятиями и бронированиями.
-
-Текущая версия проекта реализует **Clean Architecture**, PostgreSQL, Entity Framework Core, JWT-аутентификацию и ролевую авторизацию.
-
-## Технологии
-
-- .NET 9
-- ASP.NET Core Web API
-- Entity Framework Core
-- PostgreSQL
-- JWT Bearer Authentication
-- Swagger / OpenAPI
-- xUnit
-- Testcontainers
-- Docker
+BookManager в Sprint 9 разделён на три независимых микросервиса с асинхронным взаимодействием через Apache Kafka.
 
 ## Архитектура
 
-Проект разделён на четыре production-слоя:
+```text
+                   +----------------+
+                   | Users / Auth   |
+                   | PostgreSQL     |
+                   | :5001          |
+                   +----------------+
+                          |
+                          | JWT
+                          v
+
++----------------+     Kafka      +----------------+
+| Bookings       | -------------> | Events         |
+| PostgreSQL     | BookingConfirmed| PostgreSQL     |
+| :5003          |                | :5002          |
++----------------+                +----------------+
+```
+
+Сервисы не вызывают друг друга по HTTP.
+
+## Сервисы
+
+### Users / Auth
+
+Порт:
 
 ```text
-BookManager.Domain
-        ^
-        |
-BookManager.Application
-        ^
-        |
-BookManager.Infrastructure
-
-BookManager.Presentation
-        |
-        +----> BookManager.Application
-        |
-        +----> BookManager.Infrastructure
+5001
 ```
 
-Зависимости:
+База:
 
 ```text
-Application    -> Domain
-Infrastructure -> Application
-Infrastructure -> Domain
-Presentation   -> Application
-Presentation   -> Infrastructure
+usersdb
 ```
 
-### BookManager.Domain
+Функции:
 
-Содержит предметную модель:
+- регистрация;
+- login;
+- SHA-256 password hashing;
+- выдача JWT.
 
-- `Event`
-- `Booking`
-- `User`
-- `BookingStatus`
-- `UserRole`
-- доменные исключения
-
-Domain не зависит от ASP.NET Core, Entity Framework Core или Infrastructure.
-
-### BookManager.Application
-
-Содержит бизнес-логику приложения:
-
-- `EventService`
-- `BookingService`
-- `AuthService`
-- DTO
-- интерфейсы репозиториев
-- `IUnitOfWork`
-- `IPasswordHasher`
-- `IJwtTokenGenerator`
-
-Application зависит только от Domain.
-
-### BookManager.Infrastructure
-
-Содержит инфраструктурные реализации:
-
-- `AppDbContext`
-- EF Core mappings
-- EF Core migrations
-- `EventRepository`
-- `BookingRepository`
-- `UserRepository`
-- `UnitOfWork`
-- SHA-256 password hashing
-- JWT generation
-
-### BookManager.Presentation
-
-Содержит:
-
-- ASP.NET Core Controllers
-- JWT authentication
-- role-based authorization
-- Swagger
-- middleware обработки ошибок
-- Dependency Injection
-- background services
-- composition root
-
----
-
-# Sprint 8
-
-В Sprint 8 в BookManager добавлены пользователи, JWT-аутентификация и разграничение доступа.
-
-## Пользователи
-
-Добавлена сущность:
+Endpoints:
 
 ```text
-User
-```
-
-Пользователь содержит:
-
-- `Id`
-- `Login`
-- `PasswordHash`
-- `Role`
-
-Поддерживаются роли:
-
-```text
-User
-Admin
-```
-
-## Бронирования
-
-`Booking` теперь связан с пользователем:
-
-```text
-Booking
-├── EventId
-└── UserId
-```
-
-Добавлен статус:
-
-```text
-Cancelled
-```
-
-## Бизнес-правила
-
-В приложении действуют следующие правила:
-
-- нельзя бронировать уже начавшееся мероприятие;
-- пользователь может иметь максимум 10 активных бронирований;
-- активными считаются `Pending` и `Confirmed`;
-- лимит считается отдельно для каждого пользователя;
-- пользователь может отменить только собственную бронь;
-- администратор может отменить любую бронь;
-- отменённая бронь получает статус `Cancelled`;
-- после отмены место возвращается мероприятию.
-
-## Авторизация
-
-Права:
-
-| Действие | User | Admin |
-|---|---:|---:|
-| Просмотр событий | Да | Да |
-| Создание события | Нет | Да |
-| Изменение события | Нет | Да |
-| Удаление события | Нет | Да |
-| Создание бронирования | Да | Да |
-| Просмотр бронирования | Да | Да |
-| Отмена своей брони | Да | Да |
-| Отмена чужой брони | Нет | Да |
-
-Для защищённых endpoints используется:
-
-```http
-Authorization: Bearer <JWT>
-```
-
-Без JWT защищённые методы возвращают:
-
-```text
-401 Unauthorized
-```
-
-При недостаточных правах:
-
-```text
-403 Forbidden
-```
-
----
-
-# Authentication API
-
-## Регистрация
-
-```http
 POST /auth/register
-```
-
-Пример:
-
-```json
-{
-  "login": "user1",
-  "password": "password",
-  "role": "User"
-}
-```
-
-Для обычного пользователя:
-
-```json
-{
-  "login": "user1",
-  "password": "password"
-}
-```
-
-Роль по умолчанию:
-
-```text
-User
-```
-
-## Авторизация
-
-```http
 POST /auth/login
 ```
 
-Запрос:
+### Events
 
-```json
-{
-  "login": "user1",
-  "password": "password"
-}
-```
-
-Ответ:
-
-```json
-{
-  "token": "<jwt-token>"
-}
-```
-
----
-
-# Swagger
-
-После запуска приложения Swagger доступен по адресу:
+Порт:
 
 ```text
-http://localhost:<port>/swagger
+5002
 ```
 
-Для работы с защищёнными endpoints:
-
-1. Выполнить `POST /auth/register`.
-2. Выполнить `POST /auth/login`.
-3. Скопировать `token`.
-4. Нажать **Authorize** в Swagger.
-5. Вставить JWT.
-6. Выполнять защищённые запросы.
-
----
-
-# JWT configuration
-
-Настройки находятся в:
+База:
 
 ```text
-BookManager.Presentation/appsettings.json
+eventsdb
 ```
 
-Пример:
+Функции:
 
-```json
-{
-  "Jwt": {
-    "Secret": "...",
-    "Issuer": "BookManager",
-    "Audience": "BookManager.Client",
-    "LifetimeMinutes": 60
-  }
-}
+- CRUD событий;
+- учёт доступных мест;
+- Kafka consumer `BookingConfirmed`.
+
+Endpoints:
+
+```text
+GET    /events
+GET    /events/{id}
+POST   /events
+PUT    /events/{id}
+DELETE /events/{id}
 ```
 
-Секрет в репозитории предназначен только для локальной разработки.
+POST, PUT и DELETE доступны только роли `Admin`.
 
-В production JWT Secret необходимо передавать через безопасное хранилище или переменную окружения:
+### Bookings
+
+Порт:
+
+```text
+5003
+```
+
+База:
+
+```text
+bookingsdb
+```
+
+Функции:
+
+- создание броней;
+- получение брони;
+- отмена брони;
+- фоновое подтверждение;
+- публикация `BookingConfirmed`.
+
+Endpoints:
+
+```text
+POST   /events/{eventId}/book
+GET    /bookings/{id}
+DELETE /bookings/{id}
+```
+
+Все endpoints требуют JWT.
+
+## Clean Architecture
+
+Каждый сервис разделён на:
+
+```text
+Domain
+Application
+Infrastructure
+Presentation
+```
+
+Направление зависимостей:
+
+```text
+Presentation -> Application
+Presentation -> Infrastructure
+
+Infrastructure -> Application
+Infrastructure -> Domain
+
+Application -> Domain
+
+Domain -> nothing
+```
+
+## Shared contracts
+
+Общий проект:
+
+```text
+src/BookManager.Contracts
+```
+
+Содержит:
+
+```text
+KafkaTopics.BookingConfirmed
+BookingConfirmed
+```
+
+Контракт:
+
+```text
+BookingId
+EventId
+UserId
+SeatCount
+ConfirmedAt
+```
+
+## BookingConfirmed flow
+
+```text
+1. User создаёт booking
+                |
+                v
+2. Bookings сохраняет Pending
+                |
+                v
+3. Background worker подтверждает booking
+                |
+                v
+4. Status=Confirmed сохраняется в bookingsdb
+                |
+                v
+5. Bookings публикует BookingConfirmed в Kafka
+                |
+                v
+6. Events consumer получает сообщение
+                |
+                v
+7. Events проверяет идемпотентность по BookingId
+                |
+                v
+8. Events уменьшает AvailableSeats
+                |
+                v
+9. Изменение сохраняется в eventsdb
+```
+
+Bookings не обращается к Events по HTTP.
+
+## Kafka
+
+Topic:
+
+```text
+booking-confirmed
+```
+
+Producer:
+
+```text
+Bookings.Infrastructure
+```
+
+Producer зарегистрирован singleton и реализует `IDisposable`.
+
+Ключ Kafka сообщения:
+
+```text
+EventId
+```
+
+Поэтому сообщения одного события попадают в один partition и сохраняют порядок.
+
+Consumer:
+
+```text
+Events.Infrastructure
+```
+
+Consumer работает как `BackgroundService`.
+
+Для каждого события создаётся отдельный DI scope.
+
+Events также создаёт Kafka topic при запуске, если он ещё не существует.
+
+## Идемпотентность
+
+Events хранит обработанные `BookingId` в таблице:
+
+```text
+processed_booking_events
+```
+
+Повторная доставка одного `BookingConfirmed` не уменьшает количество мест второй раз.
+
+## Eventual consistency
+
+Изменение брони сначала сохраняется в Bookings DB.
+
+Только после этого публикуется интеграционное событие.
+
+Events изменяет собственную БД независимо после получения сообщения Kafka.
+
+## JWT
+
+JWT выдаёт только Users.
+
+Во всех трёх сервисах используются одинаковые:
+
+```text
+Secret
+Issuer
+Audience
+```
+
+Events и Bookings валидируют токен самостоятельно.
+
+## Swagger
+
+```text
+Users:
+http://localhost:5001/swagger
+
+Events:
+http://localhost:5002/swagger
+
+Bookings:
+http://localhost:5003/swagger
+```
+
+Во всех Swagger настроен Bearer JWT.
+
+## Docker
+
+Система состоит из:
+
+```text
+Zookeeper
+Kafka
+
+users-db
+events-db
+bookings-db
+
+users
+events
+bookings
+```
+
+Запуск:
 
 ```bash
-export Jwt__Secret="very-long-production-secret"
+docker compose up -d --build
 ```
 
----
-
-# Password hashing
-
-Пароли не сохраняются в открытом виде.
-
-Для учебной реализации Sprint 8 используется:
-
-```text
-SHA-256
-```
-
-В базе хранится только `PasswordHash`.
-
----
-
-# PostgreSQL и Entity Framework Core
-
-Контекст:
-
-```text
-BookManager.Infrastructure/DataAccess/AppDbContext.cs
-```
-
-Миграции:
-
-```text
-BookManager.Infrastructure/DataAccess/Migrations
-```
-
-Sprint 8 добавляет:
-
-- таблицу `users`;
-- уникальный индекс для login;
-- `user_id` в `bookings`;
-- внешний ключ `bookings -> users`.
-
-## Применение миграций
+Состояние:
 
 ```bash
-dotnet tool restore
+docker compose ps
+```
 
+Логи:
+
+```bash
+docker compose logs -f
+```
+
+Остановка:
+
+```bash
+docker compose down
+```
+
+Остановка с удалением локальных данных PostgreSQL:
+
+```bash
+docker compose down -v
+```
+
+Последняя команда удаляет Docker volumes и все локальные данные трёх БД.
+
+## Build
+
+```bash
+dotnet restore BookManager.sln
+dotnet build BookManager.sln
+```
+
+## EF Core migrations
+
+### Users
+
+```bash
 dotnet tool run dotnet-ef database update \
-  --project BookManager.Infrastructure/BookManager.Infrastructure.csproj \
-  --startup-project BookManager.Presentation/BookManager.Presentation.csproj
+  --project src/Users/Users.Infrastructure/Users.Infrastructure.csproj \
+  --startup-project src/Users/Users.Presentation/Users.Presentation.csproj
 ```
 
----
-
-# Сборка
-
-Из корня репозитория:
+### Events
 
 ```bash
-dotnet restore BookManager.Presentation/BookManager.sln
-
-dotnet build BookManager.Presentation/BookManager.sln
+dotnet tool run dotnet-ef database update \
+  --project src/Events/Events.Infrastructure/Events.Infrastructure.csproj \
+  --startup-project src/Events/Events.Presentation/Events.Presentation.csproj
 ```
 
----
-
-# Запуск
-
-PostgreSQL должен быть доступен согласно connection string.
+### Bookings
 
 ```bash
-dotnet run \
-  --project BookManager.Presentation/BookManager.Presentation.csproj
+dotnet tool run dotnet-ef database update \
+  --project src/Bookings/Bookings.Infrastructure/Bookings.Infrastructure.csproj \
+  --startup-project src/Bookings/Bookings.Presentation/Bookings.Presentation.csproj
 ```
 
----
+В Docker migrations автоматически применяются при старте каждого сервиса.
 
-# Тесты
+## Порты
 
-Unit tests:
-
-```bash
-dotnet test EventService.Tests/EventService.Tests.csproj
-```
-
-Все тесты solution:
-
-```bash
-dotnet test BookManager.Presentation/BookManager.sln
-```
-
-Integration tests используют PostgreSQL через Testcontainers, поэтому Docker должен быть запущен:
-
-```bash
-docker info
-```
-
----
-
-# Структура проекта
-
-```text
-BookManager/
-├── BookManager.Domain/
-├── BookManager.Application/
-├── BookManager.Infrastructure/
-├── BookManager.Presentation/
-├── BookManager.Presentation.Tests/
-├── EventService.Tests/
-├── EventApi.IntegrationTests/
-└── README.md
-```
+| Компонент | Порт |
+|---|---:|
+| Users API | 5001 |
+| Events API | 5002 |
+| Bookings API | 5003 |
+| Kafka | 9092 |
+| Users PostgreSQL | 5433 |
+| Events PostgreSQL | 5434 |
+| Bookings PostgreSQL | 5435 |
