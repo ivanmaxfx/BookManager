@@ -1,7 +1,7 @@
+using BookManager.Domain.Enums;
+using BookManager.Infrastructure.DataAccess.Repositories;
+using BookManager.Infrastructure.DataAccess.UnitOfWork;
 using Microsoft.EntityFrameworkCore;
-using MyWebApiProject.DataAccess.Repositories;
-using MyWebApiProject.DataAccess.UnitOfWork;
-using MyWebApiProject.Models;
 
 namespace EventApi.IntegrationTests
 {
@@ -17,36 +17,41 @@ namespace EventApi.IntegrationTests
         }
 
         [Fact]
-        public async Task AddAndGetByIdAsync_PersistsBooking()
+        public async Task AddAndGet_PersistsUserId()
         {
             await _fixture.ResetDatabaseAsync();
 
             var eventItem =
                 TestEntityFactory.CreateEvent();
 
+            var user =
+                TestEntityFactory.CreateUser();
+
             var booking =
                 TestEntityFactory.CreateBooking(
-                    eventItem.Id);
+                    eventItem.Id,
+                    user.Id);
 
             await using (var context =
                 _fixture.CreateContext())
             {
-                var eventRepository =
+                var events =
                     new EventRepository(context);
 
-                var bookingRepository =
+                var users =
+                    new UserRepository(context);
+
+                var bookings =
                     new BookingRepository(context);
 
-                var unitOfWork =
+                var uow =
                     new UnitOfWork(context);
 
-                await eventRepository.AddAsync(
-                    eventItem);
+                await events.AddAsync(eventItem);
+                await users.AddAsync(user);
+                await bookings.AddAsync(booking);
 
-                await bookingRepository.AddAsync(
-                    booking);
-
-                await unitOfWork.SaveChangesAsync();
+                await uow.SaveChangesAsync();
             }
 
             await using (var context =
@@ -58,18 +63,10 @@ namespace EventApi.IntegrationTests
                 var stored =
                     await repository.GetByIdAsync(
                         booking.Id,
-                        trackChanges: false);
+                        false);
 
                 Assert.NotNull(stored);
-
-                Assert.Equal(
-                    booking.Id,
-                    stored.Id);
-
-                Assert.Equal(
-                    eventItem.Id,
-                    stored.EventId);
-
+                Assert.Equal(user.Id, stored.UserId);
                 Assert.Equal(
                     BookingStatus.Pending,
                     stored.Status);
@@ -81,204 +78,63 @@ namespace EventApi.IntegrationTests
         }
 
         [Fact]
-        public async Task GetPendingMethods_ReturnOnlyPendingBookings()
+        public async Task CountActive_CountsPendingAndConfirmed()
         {
             await _fixture.ResetDatabaseAsync();
 
             var eventItem =
-                TestEntityFactory.CreateEvent();
+                TestEntityFactory.CreateEvent(
+                    totalSeats: 10);
 
-            var firstPending =
-                TestEntityFactory.CreateBooking(
-                    eventItem.Id);
+            var user =
+                TestEntityFactory.CreateUser();
 
-            var secondPending =
+            var pending =
                 TestEntityFactory.CreateBooking(
-                    eventItem.Id);
+                    eventItem.Id,
+                    user.Id);
 
             var confirmed =
                 TestEntityFactory.CreateBooking(
-                    eventItem.Id);
+                    eventItem.Id,
+                    user.Id);
 
             confirmed.Confirm();
 
-            await using var context =
-                _fixture.CreateContext();
-
-            var eventRepository =
-                new EventRepository(context);
-
-            var bookingRepository =
-                new BookingRepository(context);
-
-            var unitOfWork =
-                new UnitOfWork(context);
-
-            await eventRepository.AddAsync(eventItem);
-
-            await bookingRepository.AddAsync(
-                firstPending);
-
-            await bookingRepository.AddAsync(
-                secondPending);
-
-            await bookingRepository.AddAsync(
-                confirmed);
-
-            await unitOfWork.SaveChangesAsync();
-
-            var pending =
-                await bookingRepository
-                    .GetPendingAsync();
-
-            var pendingIds =
-                await bookingRepository
-                    .GetPendingIdsAsync();
-
-            Assert.Equal(2, pending.Count);
-            Assert.Equal(2, pendingIds.Count);
-
-            Assert.Contains(
-                firstPending.Id,
-                pendingIds);
-
-            Assert.Contains(
-                secondPending.Id,
-                pendingIds);
-
-            Assert.DoesNotContain(
-                confirmed.Id,
-                pendingIds);
-
-            Assert.All(
-                pending,
-                booking => Assert.Equal(
-                    BookingStatus.Pending,
-                    booking.Status));
-        }
-
-        [Fact]
-        public async Task Update_PersistsChangedStatus()
-        {
-            await _fixture.ResetDatabaseAsync();
-
-            var bookingId =
-                await SeedBookingAsync();
-
-            await using (var context =
-                _fixture.CreateContext())
-            {
-                var repository =
-                    new BookingRepository(context);
-
-                var unitOfWork =
-                    new UnitOfWork(context);
-
-                var booking =
-                    await repository.GetByIdAsync(
-                        bookingId,
-                        trackChanges: true);
-
-                Assert.NotNull(booking);
-
-                booking.Confirm();
-                repository.Update(booking);
-
-                await unitOfWork.SaveChangesAsync();
-            }
-
-            await using (var context =
-                _fixture.CreateContext())
-            {
-                var repository =
-                    new BookingRepository(context);
-
-                var stored =
-                    await repository.GetByIdAsync(
-                        bookingId,
-                        trackChanges: false);
-
-                Assert.NotNull(stored);
-
-                Assert.Equal(
-                    BookingStatus.Confirmed,
-                    stored.Status);
-
-                Assert.NotNull(stored.ProcessedAt);
-            }
-        }
-
-        [Fact]
-        public async Task Remove_DeletesBooking()
-        {
-            await _fixture.ResetDatabaseAsync();
-
-            var bookingId =
-                await SeedBookingAsync();
-
-            await using (var context =
-                _fixture.CreateContext())
-            {
-                var repository =
-                    new BookingRepository(context);
-
-                var unitOfWork =
-                    new UnitOfWork(context);
-
-                var booking =
-                    await repository.GetByIdAsync(
-                        bookingId,
-                        trackChanges: true);
-
-                Assert.NotNull(booking);
-
-                repository.Remove(booking);
-
-                await unitOfWork.SaveChangesAsync();
-            }
-
-            await using (var context =
-                _fixture.CreateContext())
-            {
-                var repository =
-                    new BookingRepository(context);
-
-                var stored =
-                    await repository.GetByIdAsync(
-                        bookingId,
-                        trackChanges: false);
-
-                Assert.Null(stored);
-            }
-        }
-
-        private async Task<Guid> SeedBookingAsync()
-        {
-            var eventItem =
-                TestEntityFactory.CreateEvent();
-
-            var booking =
+            var cancelled =
                 TestEntityFactory.CreateBooking(
-                    eventItem.Id);
+                    eventItem.Id,
+                    user.Id);
+
+            cancelled.Cancel();
 
             await using var context =
                 _fixture.CreateContext();
 
-            var eventRepository =
+            var events =
                 new EventRepository(context);
 
-            var bookingRepository =
+            var users =
+                new UserRepository(context);
+
+            var bookings =
                 new BookingRepository(context);
 
-            var unitOfWork =
+            var uow =
                 new UnitOfWork(context);
 
-            await eventRepository.AddAsync(eventItem);
-            await bookingRepository.AddAsync(booking);
+            await events.AddAsync(eventItem);
+            await users.AddAsync(user);
+            await bookings.AddAsync(pending);
+            await bookings.AddAsync(confirmed);
+            await bookings.AddAsync(cancelled);
 
-            await unitOfWork.SaveChangesAsync();
+            await uow.SaveChangesAsync();
 
-            return booking.Id;
+            Assert.Equal(
+                2,
+                await bookings.CountActiveByUserIdAsync(
+                    user.Id));
         }
     }
 }

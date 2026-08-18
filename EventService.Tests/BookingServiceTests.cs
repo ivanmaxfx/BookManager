@@ -1,13 +1,17 @@
 using System.Collections.Concurrent;
 using Microsoft.Extensions.DependencyInjection;
-using MyWebApiProject.Exceptions;
-using MyWebApiProject.Models;
-using MyWebApiProject.Services;
+using BookManager.Domain.Exceptions;
+using BookManager.Domain.Entities;
+using BookManager.Domain.Enums;
+using BookManager.Application.Services;
 
 namespace EventService.Tests
 {
     public class BookingServiceTests
     {
+        private static readonly Guid TestUserId =
+            Guid.NewGuid();
+
         [Fact]
         public async Task CreateBookingAsync_CreatesPendingBooking()
         {
@@ -33,8 +37,7 @@ namespace EventService.Tests
                     .GetRequiredService<IBookingService>();
 
                 var booking =
-                    await bookingService.CreateBookingAsync(
-                        eventId);
+                    await bookingService.CreateBookingAsync(eventId, TestUserId);
 
                 Assert.NotEqual(Guid.Empty, booking.Id);
                 Assert.Equal(eventId, booking.EventId);
@@ -69,8 +72,7 @@ namespace EventService.Tests
                 var bookingService = scope.ServiceProvider
                     .GetRequiredService<IBookingService>();
 
-                await bookingService.CreateBookingAsync(
-                    eventId);
+                await bookingService.CreateBookingAsync(eventId, TestUserId);
             }
 
             using (var scope = provider.CreateScope())
@@ -112,8 +114,7 @@ namespace EventService.Tests
                 var bookingService = scope.ServiceProvider
                     .GetRequiredService<IBookingService>();
 
-                await bookingService.CreateBookingAsync(
-                    eventId);
+                await bookingService.CreateBookingAsync(eventId, TestUserId);
             }
 
             using (var scope = provider.CreateScope())
@@ -125,8 +126,7 @@ namespace EventService.Tests
                     await Assert.ThrowsAsync<
                         NoAvailableSeatsException>(
                         () => bookingService
-                            .CreateBookingAsync(
-                                eventId));
+                            .CreateBookingAsync(eventId, TestUserId));
 
                 Assert.Equal(
                     "No available seats for this event",
@@ -149,8 +149,7 @@ namespace EventService.Tests
 
             await Assert.ThrowsAsync<
                 NotFoundException>(
-                () => bookingService.CreateBookingAsync(
-                    eventId));
+                () => bookingService.CreateBookingAsync(eventId, TestUserId));
         }
 
         [Fact]
@@ -310,8 +309,7 @@ namespace EventService.Tests
                     {
                         var booking =
                             await bookingService
-                                .CreateBookingAsync(
-                                    eventId);
+                                .CreateBookingAsync(eventId, TestUserId);
 
                         successfulIds.Add(
                             booking.Id);
@@ -400,7 +398,7 @@ namespace EventService.Tests
                                 IBookingService>();
 
                     return await service
-                        .CreateBookingAsync(eventId);
+                        .CreateBookingAsync(eventId, TestUserId);
                 }))
                 .ToArray();
 
@@ -445,7 +443,7 @@ namespace EventService.Tests
 
                 return (
                     await bookingService
-                        .CreateBookingAsync(eventId))
+                        .CreateBookingAsync(eventId, TestUserId))
                     .Id;
             }
         }
@@ -453,13 +451,14 @@ namespace EventService.Tests
         private static Event CreateEvent(
             int totalSeats = 10)
         {
+            var startAt =
+                DateTime.UtcNow.AddDays(1);
+
             return Event.Create(
                 "Booking test event",
                 "Test description",
-                new DateTime(
-                    2026, 8, 10, 10, 0, 0),
-                new DateTime(
-                    2026, 8, 10, 12, 0, 0),
+                startAt,
+                startAt.AddHours(2),
                 totalSeats);
         }
     }

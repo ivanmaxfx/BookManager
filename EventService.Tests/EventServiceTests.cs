@@ -1,8 +1,9 @@
 using Microsoft.Extensions.DependencyInjection;
-using MyWebApiProject.Dtos;
-using MyWebApiProject.Exceptions;
-using MyWebApiProject.Models;
-using MyWebApiProject.Services;
+using BookManager.Application.Dtos;
+using BookManager.Domain.Exceptions;
+using BookManager.Domain.Entities;
+using BookManager.Domain.Enums;
+using BookManager.Application.Services;
 
 namespace EventService.Tests
 {
@@ -158,11 +159,15 @@ namespace EventService.Tests
 
                 eventId = created.Id;
 
-                await bookingService.CreateBookingAsync(
-                    eventId);
+                var userId = Guid.NewGuid();
 
                 await bookingService.CreateBookingAsync(
-                    eventId);
+                    eventId,
+                    userId);
+
+                await bookingService.CreateBookingAsync(
+                    eventId,
+                    userId);
             }
 
             using (var scope = provider.CreateScope())
@@ -446,8 +451,7 @@ namespace EventService.Tests
             DateTime? startAt = null)
         {
             var start = startAt ??
-                new DateTime(
-                    2026, 8, 10, 10, 0, 0);
+                DateTime.UtcNow.AddDays(1);
 
             return Event.Create(
                 title,

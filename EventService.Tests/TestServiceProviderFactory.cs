@@ -1,11 +1,12 @@
+using BookManager.Application.Abstractions.Persistence;
+using BookManager.Application.Abstractions.Security;
+using BookManager.Application.Services;
+using BookManager.Infrastructure.DataAccess;
+using BookManager.Infrastructure.DataAccess.Repositories;
+using BookManager.Infrastructure.DataAccess.UnitOfWork;
+using BookManager.Infrastructure.Security;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
-using MyWebApiProject.DataAccess;
-using MyWebApiProject.DataAccess.Repositories;
-using MyWebApiProject.DataAccess.UnitOfWork;
-using MyWebApiProject.Services;
-using EventServiceImpl =
-    MyWebApiProject.Services.EventService;
 
 namespace EventService.Tests
 {
@@ -14,13 +15,16 @@ namespace EventService.Tests
         public static ServiceProvider Create(
             string? databaseName = null)
         {
-            databaseName ??= Guid.NewGuid().ToString();
+            databaseName ??=
+                Guid.NewGuid().ToString();
 
-            var services = new ServiceCollection();
+            var services =
+                new ServiceCollection();
 
             services.AddDbContext<AppDbContext>(
-                options => options.UseInMemoryDatabase(
-                    databaseName));
+                options =>
+                    options.UseInMemoryDatabase(
+                        databaseName));
 
             services.AddScoped<
                 IEventRepository,
@@ -31,16 +35,43 @@ namespace EventService.Tests
                 BookingRepository>();
 
             services.AddScoped<
+                IUserRepository,
+                UserRepository>();
+
+            services.AddScoped<
                 IUnitOfWork,
                 UnitOfWork>();
 
+            services.AddSingleton<
+                IPasswordHasher,
+                PasswordHasher>();
+
+            services.AddSingleton(
+                new JwtOptions
+                {
+                    Secret =
+                        "BookManager-Test-Secret-Key-"
+                        + "For-Sprint-8-123456789",
+                    Issuer = "BookManager.Tests",
+                    Audience = "BookManager.Tests",
+                    LifetimeMinutes = 60
+                });
+
+            services.AddSingleton<
+                IJwtTokenGenerator,
+                JwtTokenGenerator>();
+
             services.AddScoped<
                 IEventService,
-                EventServiceImpl>();
+                BookManager.Application.Services.EventService>();
 
             services.AddScoped<
                 IBookingService,
                 BookingService>();
+
+            services.AddScoped<
+                IAuthService,
+                AuthService>();
 
             return services.BuildServiceProvider();
         }
