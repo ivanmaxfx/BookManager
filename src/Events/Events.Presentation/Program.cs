@@ -1,3 +1,4 @@
+using StackExchange.Redis;
 using Events.Presentation;
 using System.Security.Claims;
 using System.Text;
@@ -56,6 +57,39 @@ builder.Services.AddDbContext<EventsDbContext>(
 builder.Services.AddScoped<
     IEventRepository,
     EventRepository>();
+
+var eventCacheOptions =
+    builder.Configuration
+        .GetSection("Redis")
+        .Get<EventCacheOptions>()
+    ?? new EventCacheOptions();
+
+builder.Services.AddSingleton(
+    eventCacheOptions);
+
+var redisConnectionString =
+    builder.Configuration[
+        "Redis:ConnectionString"]
+    ?? "localhost:6379";
+
+var redisConfiguration =
+    ConfigurationOptions.Parse(
+        redisConnectionString);
+
+redisConfiguration.AbortOnConnectFail = false;
+redisConfiguration.ConnectRetry = 1;
+redisConfiguration.ConnectTimeout = 1000;
+redisConfiguration.SyncTimeout = 1000;
+
+builder.Services.AddSingleton<
+    IConnectionMultiplexer>(
+        _ =>
+            ConnectionMultiplexer.Connect(
+                redisConfiguration));
+
+builder.Services.AddSingleton<
+    ICacheService,
+    RedisCacheService>();
 
 builder.Services.AddScoped<EventService>();
 

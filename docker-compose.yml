@@ -52,6 +52,21 @@ services:
       timeout: 5s
       retries: 30
 
+  redis:
+    image: redis:7.2-alpine
+    ports:
+      - "6379:6379"
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "redis-cli",
+          "ping"
+        ]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
   users-db:
     image: postgres:16-alpine
     ports:
@@ -163,6 +178,15 @@ services:
 
       Kafka__ConsumerGroup:
         events-service
+
+      Redis__ConnectionString:
+        redis:6379
+
+      Redis__EventTtlSeconds:
+        300
+
+      Redis__Top10TtlSeconds:
+        60
 
     depends_on:
       events-db:

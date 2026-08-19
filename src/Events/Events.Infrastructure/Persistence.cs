@@ -118,6 +118,23 @@ public sealed class EventRepository :
             .ToListAsync(cancellationToken);
     }
 
+    public async Task<IReadOnlyList<Event>>
+        GetTop10PopularAsync(
+            CancellationToken cancellationToken = default)
+    {
+        return await _db.Events
+            .AsNoTracking()
+            .OrderByDescending(
+                x =>
+                    ((double)(
+                        x.TotalSeats -
+                        x.AvailableSeats))
+                    / x.TotalSeats)
+            .ThenBy(x => x.StartAt)
+            .Take(10)
+            .ToListAsync(cancellationToken);
+    }
+
     public async Task<Event?> GetByIdAsync(
         Guid id,
         bool trackChanges,

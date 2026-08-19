@@ -377,3 +377,187 @@ dotnet tool run dotnet-ef database update \
 | Users PostgreSQL | 5433 |
 | Events PostgreSQL | 5434 |
 | Bookings PostgreSQL | 5435 |
+
+---
+
+# Sprint 10 — Redis caching
+
+Events Service использует Redis как необязательный слой кеширования.
+
+## Что кешируется
+
+Получение события по идентификатору:
+
+```text
+GET /events/{id}
+key: event:{id}
+TTL: 300 секунд
+```
+
+Топ популярных событий:
+
+```text
+GET /events/top
+key: events:top10
+TTL: 60 секунд
+```
+
+Популярность определяется долей проданных мест:
+
+```text
+(totalSeats - availableSeats) / totalSeats
+```
+
+Возвращается не более десяти событий с максимальной долей проданных мест.
+
+## Cache-Aside
+
+Для чтения используется паттерн Cache-Aside:
+
+```text
+Request
+   |
+   v
+Redis
+   |
+   +-- HIT --> response
+   |
+   +-- MISS
+         |
+         v
+     PostgreSQL
+         |
+         v
+       Redis
+         |
+         v
+      response
+```
+
+При cache hit репозиторий PostgreSQL не вызывается.
+
+При cache miss данные читаются из PostgreSQL и сохраняются в Redis с TTL.
+
+## Стратегия event:{id}
+
+Для отдельного события используется invalidation-on-write.
+
+После:
+
+```text
+POST /events
+PUT /events/{id}
+DELETE /events/{id}
+```
+
+операция сначала сохраняется в PostgreSQL, а затем удаляется ключ:
+
+```text
+event:{id}
+```
+
+Следующий GET прочитает актуальное состояние из базы и снова прогреет кеш.
+
+Такой подход выбран потому, что данные отдельного события должны быть актуальными сразу после изменения.
+
+## Стратегия events:top10
+
+Ключ:
+
+```text
+events:top10
+```
+
+не инвалидируется при каждой записи или бронировании.
+
+Он обновляется только по TTL.
+
+Для рейтингового агрегата небольшое временное устаревание допустимо, а постоянная инвалидация после каждой брони снизила бы пользу кеширования.
+
+TTL топа меньше TTL отдельного события:
+
+```text
+event:{id}: 300 секунд
+events:top10: 60 секунд
+```
+
+## Kafka и кеш
+
+Events Service получает `BookingConfirmed` из Kafka и уменьшает `AvailableSeats`.
+
+Порядок действий:
+
+```text
+1. BookingConfirmed получен.
+2. AvailableSeats изменён.
+3. Изменение сохранено в PostgreSQL.
+4. event:{id} удалён из Redis.
+```
+
+Таким образом, база данных остаётся источником истины.
+
+Кеш изменяется только после успешного сохранения БД.
+
+## Недоступность Redis
+
+Redis не является обязательной зависимостью для выполнения запроса.
+
+Если Redis недоступен:
+
+```text
+GET failure    -> запрос идёт в PostgreSQL
+SET failure    -> клиент всё равно получает ответ
+DELETE failure -> операция с БД остаётся успешной
+```
+
+Ошибки Redis логируются как warning и не возвращаются клиенту.
+
+При восстановлении Redis кеш автоматически начинает прогреваться последующими запросами.
+
+## Конфигурация
+
+Локальная конфигурация:
+
+```json
+{
+  "Redis": {
+    "ConnectionString": "localhost:6379",
+    "EventTtlSeconds": 300,
+    "Top10TtlSeconds": 60
+  }
+}
+```
+
+В Docker:
+
+```text
+Redis__ConnectionString=redis:6379
+Redis__EventTtlSeconds=300
+Redis__Top10TtlSeconds=60
+```
+
+## Redis в Docker
+
+Redis запускается вместе с системой:
+
+```bash
+docker compose up -d --build
+```
+
+Проверка:
+
+```bash
+docker compose exec redis redis-cli ping
+```
+
+Ожидаемый ответ:
+
+```text
+PONG
+```
+
+Посмотреть ключи:
+
+```bash
+docker compose exec redis redis-cli keys '*'
+```

@@ -28,6 +28,17 @@ public sealed class EventsController :
     }
 
     [AllowAnonymous]
+    [HttpGet("top")]
+    public async Task<ActionResult<
+        IReadOnlyList<EventDto>>> GetTop10(
+        CancellationToken cancellationToken)
+    {
+        return Ok(
+            await _events.GetTop10Async(
+                cancellationToken));
+    }
+
+    [AllowAnonymous]
     [HttpGet("{id:guid}")]
     public async Task<ActionResult<EventDto>>
         GetById(

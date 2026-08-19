@@ -2,6 +2,7 @@ using System.Text.Json;
 using BookManager.Contracts;
 using Confluent.Kafka;
 using Confluent.Kafka.Admin;
+using Events.Application;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
@@ -216,6 +217,11 @@ public sealed class BookingConfirmedConsumer :
                 .GetRequiredService<
                     EventsDbContext>();
 
+        var cache =
+            scope.ServiceProvider
+                .GetRequiredService<
+                    ICacheService>();
+
         var alreadyProcessed =
             await db.ProcessedBookingEvents
                 .AsNoTracking()
@@ -273,6 +279,13 @@ public sealed class BookingConfirmedConsumer :
             });
 
         await db.SaveChangesAsync(
+            cancellationToken);
+
+        // The database is authoritative:
+        // invalidate cache only after commit.
+        await cache.RemoveAsync(
+            EventCacheKeys.ById(
+                message.EventId),
             cancellationToken);
 
         _logger.LogInformation(

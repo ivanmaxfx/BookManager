@@ -36,10 +36,49 @@ public sealed record EventDto(
             item.AvailableSeats);
 }
 
+public static class EventCacheKeys
+{
+    public const string Top10 =
+        "events:top10";
+
+    public static string ById(Guid id) =>
+        $"event:{id}";
+}
+
+public sealed class EventCacheOptions
+{
+    public int EventTtlSeconds { get; set; } =
+        300;
+
+    public int Top10TtlSeconds { get; set; } =
+        60;
+}
+
+public interface ICacheService
+{
+    Task<T?> GetAsync<T>(
+        string key,
+        CancellationToken cancellationToken = default);
+
+    Task SetAsync<T>(
+        string key,
+        T value,
+        TimeSpan ttl,
+        CancellationToken cancellationToken = default);
+
+    Task RemoveAsync(
+        string key,
+        CancellationToken cancellationToken = default);
+}
+
 public interface IEventRepository
 {
     Task<IReadOnlyList<Event>> GetAllAsync(
         CancellationToken cancellationToken = default);
+
+    Task<IReadOnlyList<Event>>
+        GetTop10PopularAsync(
+            CancellationToken cancellationToken = default);
 
     Task<Event?> GetByIdAsync(
         Guid id,
@@ -59,10 +98,17 @@ public interface IEventRepository
 public sealed class EventService
 {
     private readonly IEventRepository _events;
+    private readonly ICacheService _cache;
+    private readonly EventCacheOptions _cacheOptions;
 
-    public EventService(IEventRepository events)
+    public EventService(
+        IEventRepository events,
+        ICacheService cache,
+        EventCacheOptions cacheOptions)
     {
         _events = events;
+        _cache = cache;
+        _cacheOptions = cacheOptions;
     }
 
     public async Task<IReadOnlyList<EventDto>>
@@ -82,6 +128,19 @@ public sealed class EventService
         Guid id,
         CancellationToken cancellationToken = default)
     {
+        var key =
+            EventCacheKeys.ById(id);
+
+        var cached =
+            await _cache.GetAsync<EventDto>(
+                key,
+                cancellationToken);
+
+        if (cached is not null)
+        {
+            return cached;
+        }
+
         var item =
             await _events.GetByIdAsync(
                 id,
@@ -90,7 +149,50 @@ public sealed class EventService
             ?? throw new NotFoundException(
                 $"Event with id '{id}' was not found.");
 
-        return EventDto.From(item);
+        var result =
+            EventDto.From(item);
+
+        await _cache.SetAsync(
+            key,
+            result,
+            TimeSpan.FromSeconds(
+                _cacheOptions.EventTtlSeconds),
+            cancellationToken);
+
+        return result;
+    }
+
+    public async Task<IReadOnlyList<EventDto>>
+        GetTop10Async(
+            CancellationToken cancellationToken = default)
+    {
+        var cached =
+            await _cache.GetAsync<List<EventDto>>(
+                EventCacheKeys.Top10,
+                cancellationToken);
+
+        if (cached is not null)
+        {
+            return cached;
+        }
+
+        var events =
+            await _events.GetTop10PopularAsync(
+                cancellationToken);
+
+        var result =
+            events
+                .Select(EventDto.From)
+                .ToList();
+
+        await _cache.SetAsync(
+            EventCacheKeys.Top10,
+            result,
+            TimeSpan.FromSeconds(
+                _cacheOptions.Top10TtlSeconds),
+            cancellationToken);
+
+        return result;
     }
 
     public async Task<EventDto> CreateAsync(
@@ -109,6 +211,11 @@ public sealed class EventService
             cancellationToken);
 
         await _events.SaveChangesAsync(
+            cancellationToken);
+
+        // Database first, cache second.
+        await _cache.RemoveAsync(
+            EventCacheKeys.ById(item.Id),
             cancellationToken);
 
         return EventDto.From(item);
@@ -136,6 +243,11 @@ public sealed class EventService
 
         await _events.SaveChangesAsync(
             cancellationToken);
+
+        // Invalidation-on-write.
+        await _cache.RemoveAsync(
+            EventCacheKeys.ById(id),
+            cancellationToken);
     }
 
     public async Task DeleteAsync(
@@ -153,6 +265,11 @@ public sealed class EventService
         _events.Remove(item);
 
         await _events.SaveChangesAsync(
+            cancellationToken);
+
+        // Invalidation-on-write.
+        await _cache.RemoveAsync(
+            EventCacheKeys.ById(id),
             cancellationToken);
     }
 }
