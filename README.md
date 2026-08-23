@@ -486,3 +486,231 @@ Redis unavailable
 ```
 
 PostgreSQL остаётся источником истины, а Redis используется как дополнительный производительный слой кеширования.
+
+---
+
+## Sprint 11 — Observability
+
+В Sprint 11 во все три микросервиса добавлен единый стек наблюдаемости:
+
+- OpenTelemetry;
+- Prometheus;
+- Jaeger;
+- Grafana;
+- Serilog с JSON-логами.
+
+### OpenTelemetry
+
+OpenTelemetry подключён в:
+
+```text
+Users Service
+Events Service
+Bookings Service
+```
+
+Для каждого сервиса собираются:
+
+```text
+HTTP traces
+HTTP metrics
+outgoing HTTP traces
+Entity Framework Core / PostgreSQL traces
+.NET runtime metrics
+```
+
+Имена сервисов:
+
+```text
+users-service
+events-service
+bookings-service
+```
+
+Трейсы отправляются по OTLP gRPC в Jaeger.
+
+Локальный endpoint:
+
+```text
+http://localhost:4317
+```
+
+В Docker:
+
+```text
+http://jaeger:4317
+```
+
+### Prometheus
+
+Каждый API предоставляет:
+
+```text
+/metrics
+```
+
+Локальные адреса:
+
+```text
+http://localhost:5001/metrics
+http://localhost:5002/metrics
+http://localhost:5003/metrics
+```
+
+Prometheus собирает метрики с:
+
+```text
+users:8080
+events:8080
+bookings:8080
+```
+
+Конфигурация находится в:
+
+```text
+prometheus.yml
+```
+
+Prometheus UI:
+
+```text
+http://localhost:9090
+```
+
+### Jaeger
+
+Jaeger получает распределённые трейсы через OTLP.
+
+Jaeger UI:
+
+```text
+http://localhost:16686
+```
+
+В UI доступны сервисы:
+
+```text
+users-service
+events-service
+bookings-service
+```
+
+HTTP-запросы создают HTTP spans, а операции через Entity Framework Core создают database spans.
+
+### JSON logging
+
+Все сервисы используют Serilog.
+
+Логи выводятся в stdout в структурированном JSON-формате через:
+
+```text
+CompactJsonFormatter
+```
+
+Это позволяет в дальнейшем передавать их в централизованную систему сбора логов без парсинга обычного текстового формата.
+
+### Grafana
+
+Grafana UI:
+
+```text
+http://localhost:3000
+```
+
+Данные для входа:
+
+```text
+login: admin
+password: admin
+```
+
+Prometheus datasource и dashboard настраиваются автоматически через Grafana provisioning.
+
+Файлы:
+
+```text
+grafana/provisioning/datasources/prometheus.yml
+grafana/provisioning/dashboards/bookmanager.yml
+grafana/dashboards/bookmanager-observability.json
+```
+
+Dashboard:
+
+```text
+BookManager Observability
+```
+
+содержит:
+
+```text
+Latency p50 / p95 / p99
+Throughput (RPS)
+Active HTTP requests
+5xx error rate
+```
+
+Используются метрики:
+
+```text
+http_server_request_duration_seconds
+http_server_request_duration_seconds_count
+http_server_active_requests
+```
+
+### Запуск observability stack
+
+```bash
+docker compose up -d --build
+```
+
+Проверка контейнеров:
+
+```bash
+docker compose ps
+```
+
+Проверка метрик:
+
+```bash
+curl http://localhost:5001/metrics
+curl http://localhost:5002/metrics
+curl http://localhost:5003/metrics
+```
+
+Проверка Prometheus:
+
+```text
+http://localhost:9090/targets
+```
+
+Все три target должны иметь состояние:
+
+```text
+UP
+```
+
+Проверка Jaeger:
+
+```text
+http://localhost:16686
+```
+
+Проверка Grafana:
+
+```text
+http://localhost:3000
+```
+
+### Порты
+
+| Компонент | Порт | Назначение |
+|---|---:|---|
+| Users API | 5001 | REST API / metrics |
+| Events API | 5002 | REST API / metrics |
+| Bookings API | 5003 | REST API / metrics |
+| Prometheus | 9090 | Metrics UI |
+| Jaeger | 16686 | Trace UI |
+| Jaeger OTLP | 4317 | OTLP gRPC |
+| Grafana | 3000 | Dashboard UI |
+
+Таким образом, Prometheus отвечает за хранение и запрос метрик, Jaeger — за распределённые трейсы, Grafana — за визуализацию технических показателей, а Serilog предоставляет единый структурированный формат логов.

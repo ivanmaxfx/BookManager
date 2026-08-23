@@ -1,3 +1,8 @@
+using OpenTelemetry.Metrics;
+using OpenTelemetry.Resources;
+using OpenTelemetry.Trace;
+using Serilog;
+using Serilog.Formatting.Compact;
 using Users.Presentation;
 using System.Security.Claims;
 using System.Text;
@@ -10,6 +15,46 @@ using Users.Application;
 using Users.Infrastructure;
 
 var builder = WebApplication.CreateBuilder(args);
+
+var serviceName =
+    builder.Configuration["Service:Name"]
+    ?? "users-service";
+
+var otlpEndpoint =
+    builder.Configuration["Otlp:Endpoint"]
+    ?? "http://localhost:4317";
+
+builder.Host.UseSerilog(
+    (context, configuration) =>
+    {
+        configuration
+            .ReadFrom.Configuration(
+                context.Configuration)
+            .Enrich.FromLogContext()
+            .WriteTo.Console(
+                new CompactJsonFormatter());
+    });
+
+builder.Services
+    .AddOpenTelemetry()
+    .ConfigureResource(resource =>
+        resource.AddService(
+            serviceName: serviceName))
+    .WithTracing(tracing =>
+        tracing
+            .AddAspNetCoreInstrumentation()
+            .AddHttpClientInstrumentation()
+            .AddEntityFrameworkCoreInstrumentation()
+            .AddOtlpExporter(options =>
+            {
+                options.Endpoint =
+                    new Uri(otlpEndpoint);
+            }))
+    .WithMetrics(metrics =>
+        metrics
+            .AddAspNetCoreInstrumentation()
+            .AddRuntimeInstrumentation()
+            .AddPrometheusExporter());
 
 builder.Services
     .AddControllers()
@@ -131,6 +176,8 @@ await using (var scope =
     await db.Database.MigrateAsync();
 }
 
+app.UseSerilogRequestLogging();
+
 app.UseMiddleware<ApiExceptionMiddleware>();
 
 app.UseSwagger();
@@ -145,5 +192,7 @@ app.MapGet(
     "/health",
     () => Results.Ok(
         new { status = "ok", service = "users" }));
+
+app.MapPrometheusScrapingEndpoint();
 
 app.Run();
