@@ -714,3 +714,579 @@ http://localhost:3000
 | Grafana | 3000 | Dashboard UI |
 
 Таким образом, Prometheus отвечает за хранение и запрос метрик, Jaeger — за распределённые трейсы, Grafana — за визуализацию технических показателей, а Serilog предоставляет единый структурированный формат логов.
+
+---
+
+# Sprint 11 — Observability
+
+В одиннадцатом спринте в распределённую систему BookManager добавлен стек наблюдаемости.
+
+Для всех трёх микросервисов настроены:
+
+- OpenTelemetry;
+- Prometheus;
+- Jaeger;
+- Grafana;
+- Serilog;
+- структурированные JSON-логи.
+
+Наблюдаемость подключена к следующим сервисам:
+
+```text
+Users Service
+Events Service
+Bookings Service
+```
+
+## OpenTelemetry
+
+OpenTelemetry SDK подключён во всех трёх Presentation-проектах.
+
+Для каждого сервиса настроены три основных направления наблюдаемости:
+
+- HTTP-трейсы;
+- SQL-трейсы Entity Framework Core;
+- HTTP- и runtime-метрики.
+
+Используется автоматическая инструментация:
+
+```text
+ASP.NET Core
+HttpClient
+Entity Framework Core
+.NET Runtime
+```
+
+Сервисы имеют отдельные имена ресурсов:
+
+```text
+users-service
+events-service
+bookings-service
+```
+
+Благодаря этому в Jaeger можно отдельно выбирать каждый микросервис.
+
+## Трейсы
+
+Трейсы отправляются через OTLP в Jaeger.
+
+Локальная конфигурация:
+
+```json
+{
+  "Otlp": {
+    "Endpoint": "http://localhost:4317"
+  }
+}
+```
+
+При запуске через Docker Compose используется адрес:
+
+```text
+http://jaeger:4317
+```
+
+OpenTelemetry автоматически создаёт спаны для входящих HTTP-запросов.
+
+Например:
+
+```text
+POST /auth/register
+POST /auth/login
+GET /events
+GET /events/{id}
+POST /events
+POST /events/{id}/book
+GET /bookings/{id}
+```
+
+Также создаются спаны запросов к PostgreSQL через Entity Framework Core.
+
+Таким образом, в Jaeger можно увидеть последовательность:
+
+```text
+HTTP request
+    |
+    v
+ASP.NET Core span
+    |
+    v
+Application
+    |
+    v
+Entity Framework Core span
+    |
+    v
+PostgreSQL
+```
+
+## Jaeger
+
+Jaeger используется для хранения и просмотра распределённых трейсов.
+
+Web UI:
+
+```text
+http://localhost:16686
+```
+
+OTLP gRPC endpoint:
+
+```text
+localhost:4317
+```
+
+После генерации запросов в Jaeger должны отображаться:
+
+```text
+users-service
+events-service
+bookings-service
+```
+
+Для каждого сервиса можно открыть trace и увидеть HTTP- и SQL-спаны.
+
+## Метрики
+
+Каждый ASP.NET Core сервис предоставляет Prometheus endpoint:
+
+```text
+/metrics
+```
+
+Адреса при локальном запуске Docker Compose:
+
+```text
+http://localhost:5001/metrics
+http://localhost:5002/metrics
+http://localhost:5003/metrics
+```
+
+Соответствие портов:
+
+| Сервис | Endpoint |
+|---|---|
+| Users | `http://localhost:5001/metrics` |
+| Events | `http://localhost:5002/metrics` |
+| Bookings | `http://localhost:5003/metrics` |
+
+OpenTelemetry собирает HTTP-метрики ASP.NET Core и метрики .NET Runtime.
+
+Основные HTTP-метрики:
+
+```text
+http_server_request_duration_seconds
+http_server_request_duration_seconds_count
+http_server_active_requests
+```
+
+Они используются для построения показателей latency, throughput и текущего количества запросов.
+
+## Prometheus
+
+Prometheus собирает метрики со всех трёх сервисов.
+
+Конфигурация находится в файле:
+
+```text
+prometheus.yml
+```
+
+Targets:
+
+```text
+users:8080
+events:8080
+bookings:8080
+```
+
+Prometheus UI:
+
+```text
+http://localhost:9090
+```
+
+Страница состояния targets:
+
+```text
+http://localhost:9090/targets
+```
+
+После запуска системы все три target должны находиться в состоянии:
+
+```text
+UP
+```
+
+То есть:
+
+```text
+users-service      UP
+events-service     UP
+bookings-service   UP
+```
+
+## Latency
+
+Для оценки времени обработки HTTP-запросов используется:
+
+```text
+http_server_request_duration_seconds
+```
+
+На Grafana dashboard отображаются перцентили:
+
+```text
+p50
+p95
+p99
+```
+
+Пример PromQL для p95:
+
+```promql
+histogram_quantile(
+  0.95,
+  sum by (le) (
+    rate(
+      http_server_request_duration_seconds_bucket{
+        job="events-service"
+      }[5m]
+    )
+  )
+)
+```
+
+## Throughput
+
+Количество обрабатываемых запросов в секунду рассчитывается по:
+
+```text
+http_server_request_duration_seconds_count
+```
+
+Пример:
+
+```promql
+sum(
+  rate(
+    http_server_request_duration_seconds_count{
+      job="events-service"
+    }[1m]
+  )
+)
+```
+
+Результат показывает приблизительный RPS Events Service.
+
+## Active requests
+
+Текущее количество HTTP-запросов в обработке:
+
+```text
+http_server_active_requests
+```
+
+Пример:
+
+```promql
+sum(
+  http_server_active_requests{
+    job="events-service"
+  }
+)
+```
+
+## Error rate
+
+На dashboard также добавлен показатель HTTP 5xx error rate.
+
+Он рассчитывается как отношение количества запросов с кодами `5xx` к общему количеству запросов.
+
+Пример PromQL:
+
+```promql
+100 *
+sum(
+  rate(
+    http_server_request_duration_seconds_count{
+      job="events-service",
+      http_response_status_code=~"5.."
+    }[5m]
+  )
+)
+/
+clamp_min(
+  sum(
+    rate(
+      http_server_request_duration_seconds_count{
+        job="events-service"
+      }[5m]
+    )
+  ),
+  0.001
+)
+```
+
+## Grafana
+
+Grafana используется для визуализации метрик Prometheus.
+
+Web UI:
+
+```text
+http://localhost:3000
+```
+
+Данные для входа:
+
+```text
+login: admin
+password: admin
+```
+
+Prometheus автоматически подключается как datasource:
+
+```text
+http://prometheus:9090
+```
+
+Используется Grafana provisioning, поэтому datasource и dashboard не нужно создавать вручную после каждого запуска.
+
+Provisioning-файлы:
+
+```text
+grafana/provisioning/datasources/prometheus.yml
+grafana/provisioning/dashboards/bookmanager.yml
+```
+
+JSON dashboard:
+
+```text
+grafana/dashboards/bookmanager-observability.json
+```
+
+Название dashboard:
+
+```text
+BookManager Observability
+```
+
+На dashboard представлены четыре панели:
+
+1. HTTP latency — p50, p95 и p99.
+2. Throughput — запросы в секунду.
+3. Active HTTP requests.
+4. HTTP 5xx error rate.
+
+## Структурированные логи
+
+Во всех трёх сервисах используется Serilog.
+
+Логи выводятся в stdout контейнера в JSON-формате с помощью:
+
+```text
+CompactJsonFormatter
+```
+
+Вместо обычной текстовой строки каждый лог представляет собой JSON-объект.
+
+Пример:
+
+```json
+{
+  "@t": "2026-08-23T10:30:00.0000000Z",
+  "@mt": "HTTP {RequestMethod} {RequestPath} responded {StatusCode}",
+  "RequestMethod": "GET",
+  "RequestPath": "/events",
+  "StatusCode": 200
+}
+```
+
+Такой формат позволяет в дальнейшем отправлять логи в централизованные системы хранения без дополнительного разбора неструктурированного текста.
+
+## Docker Compose
+
+В `docker-compose.yml` добавлены:
+
+```text
+Prometheus
+Jaeger
+Grafana
+```
+
+Они запускаются вместе с остальной инфраструктурой:
+
+```text
+PostgreSQL
+Kafka
+Zookeeper
+Redis
+Users Service
+Events Service
+Bookings Service
+```
+
+Запуск всей системы:
+
+```bash
+docker compose up -d --build
+```
+
+Проверка контейнеров:
+
+```bash
+docker compose ps
+```
+
+## Порты observability stack
+
+| Компонент | Порт | Назначение |
+|---|---:|---|
+| Users API | 5001 | HTTP API и `/metrics` |
+| Events API | 5002 | HTTP API и `/metrics` |
+| Bookings API | 5003 | HTTP API и `/metrics` |
+| Prometheus | 9090 | Metrics UI |
+| Jaeger | 16686 | Tracing UI |
+| Jaeger OTLP | 4317 | Приём трейсов |
+| Grafana | 3000 | Dashboards |
+
+## Проверка метрик
+
+```bash
+curl http://localhost:5001/metrics
+curl http://localhost:5002/metrics
+curl http://localhost:5003/metrics
+```
+
+Проверка Prometheus:
+
+```text
+http://localhost:9090/targets
+```
+
+Все сервисы должны быть:
+
+```text
+UP
+```
+
+## Проверка трейсов
+
+Для появления трейсов необходимо выполнить несколько запросов к API.
+
+После этого открыть:
+
+```text
+http://localhost:16686
+```
+
+и выбрать:
+
+```text
+users-service
+events-service
+bookings-service
+```
+
+В trace должны присутствовать HTTP-спаны и спаны операций с PostgreSQL.
+
+## Проверка Grafana
+
+Открыть:
+
+```text
+http://localhost:3000
+```
+
+Авторизация:
+
+```text
+admin / admin
+```
+
+Затем открыть dashboard:
+
+```text
+BookManager Observability
+```
+
+На нём должны отображаться:
+
+```text
+Latency
+Throughput
+Active requests
+Error rate
+```
+
+## Проверка JSON-логов
+
+Например:
+
+```bash
+docker compose logs events
+```
+
+или сразу для трёх сервисов:
+
+```bash
+docker compose logs users events bookings
+```
+
+Строки логов приложения должны иметь JSON-формат.
+
+## Файлы Sprint 11
+
+В репозиторий добавлены:
+
+```text
+prometheus.yml
+
+grafana/
+├── dashboards/
+│   └── bookmanager-observability.json
+└── provisioning/
+    ├── dashboards/
+    │   └── bookmanager.yml
+    └── datasources/
+        └── prometheus.yml
+```
+
+Также OpenTelemetry и Serilog настроены в Presentation-проектах всех трёх сервисов.
+
+## Итог
+
+Стек наблюдаемости BookManager выглядит следующим образом:
+
+```text
+                 +-------------------+
+                 |     Grafana       |
+                 |   localhost:3000  |
+                 +---------+---------+
+                           |
+                           v
+                 +-------------------+
+                 |    Prometheus     |
+                 |   localhost:9090  |
+                 +---------+---------+
+                           |
+            +--------------+--------------+
+            |              |              |
+            v              v              v
+         Users          Events        Bookings
+        /metrics        /metrics       /metrics
+
+
+Users --------+
+Events -------+---- OTLP ----> Jaeger
+Bookings -----+               localhost:16686
+
+
+Users --------+
+Events -------+---- JSON ----> stdout / Docker logs
+Bookings -----+
+```
+
+OpenTelemetry обеспечивает единый механизм сбора телеметрии, Prometheus хранит метрики, Jaeger предоставляет распределённые трейсы, Grafana визуализирует технические показатели, а Serilog обеспечивает единый структурированный формат логирования.
