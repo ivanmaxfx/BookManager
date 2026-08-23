@@ -1,22 +1,278 @@
 services:
-  postgres:
-    image: postgres:16-alpine
-    container_name: bookmanager-postgres
+
+  zookeeper:
+    image: confluentinc/cp-zookeeper:7.6.12
     environment:
-      POSTGRES_DB: eventapi
-      POSTGRES_USER: postgres
-      POSTGRES_PASSWORD: postgres
+      ZOOKEEPER_CLIENT_PORT: 2181
+      ZOOKEEPER_TICK_TIME: 2000
+
+  kafka:
+    image: confluentinc/cp-kafka:7.6.12
+    depends_on:
+      - zookeeper
     ports:
-      - "5432:5432"
-    volumes:
-      - bookmanager_postgres_data:/var/lib/postgresql/data
+      - "9092:9092"
+    environment:
+      KAFKA_BROKER_ID: 1
+
+      KAFKA_ZOOKEEPER_CONNECT:
+        zookeeper:2181
+
+      KAFKA_LISTENERS:
+        PLAINTEXT://0.0.0.0:29092,PLAINTEXT_HOST://0.0.0.0:9092
+
+      KAFKA_ADVERTISED_LISTENERS:
+        PLAINTEXT://kafka:29092,PLAINTEXT_HOST://localhost:9092
+
+      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP:
+        PLAINTEXT:PLAINTEXT,PLAINTEXT_HOST:PLAINTEXT
+
+      KAFKA_INTER_BROKER_LISTENER_NAME:
+        PLAINTEXT
+
+      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR:
+        1
+
+      KAFKA_TRANSACTION_STATE_LOG_MIN_ISR:
+        1
+
+      KAFKA_TRANSACTION_STATE_LOG_REPLICATION_FACTOR:
+        1
+
+      KAFKA_GROUP_INITIAL_REBALANCE_DELAY_MS:
+        0
+
     healthcheck:
       test:
-        - CMD-SHELL
-        - pg_isready -U postgres -d eventapi
+        [
+          "CMD-SHELL",
+          "kafka-topics --bootstrap-server localhost:29092 --list >/dev/null 2>&1"
+        ]
+      interval: 5s
+      timeout: 5s
+      retries: 30
+
+  redis:
+    image: redis:7.2-alpine
+    ports:
+      - "6379:6379"
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "redis-cli",
+          "ping"
+        ]
       interval: 5s
       timeout: 5s
       retries: 10
 
+  prometheus:
+    image: prom/prometheus:v2.51.0
+    container_name: eventapi-prometheus
+    volumes:
+      - ./prometheus.yml:/etc/prometheus/prometheus.yml:ro
+    ports:
+      - "9090:9090"
+
+  jaeger:
+    image: jaegertracing/all-in-one:1.56
+    container_name: eventapi-jaeger
+    ports:
+      - "16686:16686"
+      - "4317:4317"
+    environment:
+      COLLECTOR_OTLP_ENABLED: "true"
+
+  grafana:
+    image: grafana/grafana:10.4.2
+    container_name: eventapi-grafana
+    ports:
+      - "3000:3000"
+    environment:
+      GF_SECURITY_ADMIN_USER: admin
+      GF_SECURITY_ADMIN_PASSWORD: admin
+    volumes:
+      - grafana-data:/var/lib/grafana
+      - ./grafana/provisioning:/etc/grafana/provisioning:ro
+      - ./grafana/dashboards:/etc/grafana/dashboards:ro
+    depends_on:
+      - prometheus
+
+  users-db:
+    image: postgres:16-alpine
+    ports:
+      - "5433:5432"
+    environment:
+      POSTGRES_DB: usersdb
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+    volumes:
+      - users-db-data:/var/lib/postgresql/data
+    healthcheck:
+      test:
+        [
+          "CMD-SHELL",
+          "pg_isready -U postgres -d usersdb"
+        ]
+      interval: 3s
+      timeout: 3s
+      retries: 30
+
+  events-db:
+    image: postgres:16-alpine
+    ports:
+      - "5434:5432"
+    environment:
+      POSTGRES_DB: eventsdb
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+    volumes:
+      - events-db-data:/var/lib/postgresql/data
+    healthcheck:
+      test:
+        [
+          "CMD-SHELL",
+          "pg_isready -U postgres -d eventsdb"
+        ]
+      interval: 3s
+      timeout: 3s
+      retries: 30
+
+  bookings-db:
+    image: postgres:16-alpine
+    ports:
+      - "5435:5432"
+    environment:
+      POSTGRES_DB: bookingsdb
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+    volumes:
+      - bookings-db-data:/var/lib/postgresql/data
+    healthcheck:
+      test:
+        [
+          "CMD-SHELL",
+          "pg_isready -U postgres -d bookingsdb"
+        ]
+      interval: 3s
+      timeout: 3s
+      retries: 30
+
+  users:
+    build:
+      context: .
+      dockerfile: src/Users/Dockerfile
+    ports:
+      - "5001:8080"
+    environment:
+      Service__Name: users-service
+      Otlp__Endpoint: "http://jaeger:4317"
+
+      ASPNETCORE_URLS: http://+:8080
+
+      ConnectionStrings__DefaultConnection:
+        Host=users-db;Port=5432;Database=usersdb;Username=postgres;Password=postgres
+
+      Jwt__Secret:
+        BookManager-Sprint9-Development-Secret-Key-Change-In-Production
+
+      Jwt__Issuer:
+        BookManager
+
+      Jwt__Audience:
+        BookManager.Client
+
+    depends_on:
+      users-db:
+        condition: service_healthy
+
+  events:
+    build:
+      context: .
+      dockerfile: src/Events/Dockerfile
+    ports:
+      - "5002:8080"
+    environment:
+      Service__Name: events-service
+      Otlp__Endpoint: "http://jaeger:4317"
+
+      ASPNETCORE_URLS: http://+:8080
+
+      ConnectionStrings__DefaultConnection:
+        Host=events-db;Port=5432;Database=eventsdb;Username=postgres;Password=postgres
+
+      Jwt__Secret:
+        BookManager-Sprint9-Development-Secret-Key-Change-In-Production
+
+      Jwt__Issuer:
+        BookManager
+
+      Jwt__Audience:
+        BookManager.Client
+
+      Kafka__BootstrapServers:
+        kafka:29092
+
+      Kafka__ConsumerGroup:
+        events-service
+
+      Redis__ConnectionString:
+        redis:6379
+
+      Redis__EventTtlSeconds:
+        300
+
+      Redis__Top10TtlSeconds:
+        60
+
+    depends_on:
+      events-db:
+        condition: service_healthy
+      kafka:
+        condition: service_healthy
+
+  bookings:
+    build:
+      context: .
+      dockerfile: src/Bookings/Dockerfile
+    ports:
+      - "5003:8080"
+    environment:
+      Service__Name: bookings-service
+      Otlp__Endpoint: "http://jaeger:4317"
+
+      ASPNETCORE_URLS: http://+:8080
+
+      ConnectionStrings__DefaultConnection:
+        Host=bookings-db;Port=5432;Database=bookingsdb;Username=postgres;Password=postgres
+
+      Jwt__Secret:
+        BookManager-Sprint9-Development-Secret-Key-Change-In-Production
+
+      Jwt__Issuer:
+        BookManager
+
+      Jwt__Audience:
+        BookManager.Client
+
+      Kafka__BootstrapServers:
+        kafka:29092
+
+      BookingProcessing__PollIntervalMilliseconds:
+        1000
+
+      BookingProcessing__ProcessingDelayMilliseconds:
+        2000
+
+    depends_on:
+      bookings-db:
+        condition: service_healthy
+      kafka:
+        condition: service_healthy
+
 volumes:
-  bookmanager_postgres_data:
+  users-db-data:
+  events-db-data:
+  bookings-db-data:
+  grafana-data:
